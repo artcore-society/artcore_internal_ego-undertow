@@ -33,12 +33,19 @@ void main() {
 
 	wobble *= 1.0 - uAir;
 
-	// Out of the water: rivulets run down the glass, bending the view in thin vertical streaks
-	float column = floor(vUv.x * 46.0);
-	float speed = 0.25 + hash11(column) * 0.6;
-	float run = fract(vUv.y + uTime * speed + hash11(column + 7.0));
-	float streak = smoothstep(0.0, 0.25, run) * (1.0 - smoothstep(0.3, 0.9, run)) * step(0.45, hash11(column + 3.0));
-	wobble += vec2(sin(vUv.x * 46.0 * 6.2832) * 0.004, 0.006) * streak * uWet;
+	// Out of the water: rivulets run down the glass. Each is a thin rounded trail with a drop at its head,
+	// bending the view like a tiny lens (no hard edges, so nothing reads as blocks)
+	float lane = vUv.x * 38.0;
+	float column = floor(lane);
+	float across = fract(lane) - 0.5 - (hash11(column + 11.0) - 0.5) * 0.5;
+	float present = step(0.5, hash11(column + 3.0));
+	float head = fract(hash11(column + 7.0) - uTime * (0.12 + hash11(column) * 0.25));
+	float above = vUv.y - head;
+	float trail = smoothstep(0.0, 0.02, above) * (1.0 - smoothstep(0.05, 0.35 + hash11(column + 5.0) * 0.3, above));
+	float drop = exp(-pow(above / 0.012, 2.0));
+	float width = mix(0.07, 0.16, drop);
+	float lens = exp(-across * across / (width * width)) * max(trail * 0.6, drop) * present;
+	wobble += vec2(across * 0.05, -drop * 0.004) * lens * uWet;
 
 	// The sheet of water on the mask right after breaking through: it drains from the top down, its
 	// edge a bright wavering meniscus; below it the view is thick, bent and blue
