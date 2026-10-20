@@ -1,0 +1,1 @@
+vTriplanarNormal = inverseTransformDirection(transformedNormal, viewMatrix);

@@ -7,6 +7,8 @@ export default class SceneLighting extends Group implements IEnvironmentAware {
 	private readonly _hemisphere = new HemisphereLight('#c9f4ff', '#0a1c26', 1);
 	private readonly _sun = new DirectionalLight('#fff4dc', 1);
 	private readonly _sunlight = new Color('#fff4dc');
+	private _flash = 0;
+	private _ambient = 1;
 
 	constructor() {
 		super();
@@ -18,9 +20,16 @@ export default class SceneLighting extends Group implements IEnvironmentAware {
 	public applyEnvironment(state: Readonly<IEnvironmentState>): void {
 		this._hemisphere.color.copy(state.downwellColor);
 		this._hemisphere.groundColor.copy(state.waterColor).multiplyScalar(0.35);
-		this._hemisphere.intensity = state.ambientIntensity;
+		this._ambient = state.ambientIntensity;
+		this._hemisphere.intensity = this._ambient + this._flash * 1.1;
 		this._sun.intensity = state.sunIntensity;
 		this._sun.color.copy(state.downwellColor).lerp(this._sunlight, 0.5);
+	}
+
+	/** 0..1 lightning: floods the water with cold light for an instant. */
+	public set flash(value: number) {
+		this._flash = value;
+		this._hemisphere.intensity = this._ambient + value * 1.1;
 	}
 
 	/** Keeps the directional light's frame around the diver (it only matters for direction, no shadows). */

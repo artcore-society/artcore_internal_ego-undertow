@@ -30,7 +30,8 @@ void main() {
 	vPhase = aRay.w;
 
 	float horizontal = length(world.xz - cameraPosition.xz);
-	vFade = smoothstep(4.0, 14.0, horizontal) * smoothstep(uCell * 0.5, uCell * 0.25, horizontal);
+	// Only shafts near the diver: far away they'd read as solid pillars
+	vFade = smoothstep(3.0, 10.0, horizontal) * (1.0 - smoothstep(uCell * 0.12, uCell * 0.32, horizontal));
 
 	gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
 }

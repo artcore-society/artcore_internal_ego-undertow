@@ -32,7 +32,7 @@ export default class LightShafts
 	extends Mesh<InstancedBufferGeometry, ShaderMaterial>
 	implements IEnvironmentAware, IDisposable
 {
-	private static readonly COUNT = 26;
+	private static readonly COUNT = 34;
 
 	private readonly _uniforms: TypedUniforms<IShaftUniformValues>;
 
@@ -44,7 +44,7 @@ export default class LightShafts
 		const rays = new Float32Array(LightShafts.COUNT * 4);
 
 		for (let i = 0; i < LightShafts.COUNT; i++) {
-			rays.set([random.next(), random.next(), random.range(2.5, 7), random.next()], i * 4);
+			rays.set([random.next(), random.next(), random.range(1.5, 4.5), random.next()], i * 4);
 		}
 
 		geometry.setAttribute('aRay', new InstancedBufferAttribute(rays, 4));
@@ -53,7 +53,7 @@ export default class LightShafts
 		const uniforms: TypedUniforms<IShaftUniformValues> = {
 			uTime: water.time,
 			uSurfaceY: { value: SURFACE_Y },
-			uCell: { value: 90 },
+			uCell: { value: 110 },
 			uSlant: { value: new Vector3(0.18, -1, -0.12) },
 			uIntensity: { value: 1 },
 			uColor: { value: new Color() }

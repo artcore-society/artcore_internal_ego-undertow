@@ -22,7 +22,7 @@ export default class MarineSnow
 	extends Points<BufferGeometry, ShaderMaterial>
 	implements IEnvironmentAware, IDisposable
 {
-	private static readonly COUNT = 2600;
+	private static readonly COUNT = 3000;
 
 	private readonly _uniforms: TypedUniforms<ISnowUniformValues>;
 
@@ -42,7 +42,7 @@ export default class MarineSnow
 		const uniforms: TypedUniforms<ISnowUniformValues> = {
 			uTime: water.time,
 			uBox: { value: 44 },
-			uSize: { value: 42 },
+			uSize: { value: 30 },
 			uPixelRatio: { value: 1 },
 			uColor: { value: new Color() },
 			uOpacity: { value: 0.5 }
@@ -70,7 +70,7 @@ export default class MarineSnow
 
 	public applyEnvironment(state: Readonly<IEnvironmentState>): void {
 		this._uniforms.uColor.value.copy(state.downwellColor).lerp(state.waterColor, 0.35);
-		this._uniforms.uOpacity.value = state.particles * 0.45;
+		this._uniforms.uOpacity.value = state.particles * 0.32;
 	}
 
 	public override dispose(): void {

@@ -13,8 +13,12 @@ void main() {
 	vec4 mvPosition = viewMatrix * vec4(cameraPosition + local, 1.0);
 
 	float viewDistance = -mvPosition.z;
-	vFade = smoothstep(0.4, 2.0, viewDistance) * (1.0 - smoothstep(uBox * 0.25, uBox * 0.5, length(local)));
+	// Flakes right at the lens would bloom into big discs: fade them out, and keep every flake small
+	vFade = smoothstep(1.5, 4.0, viewDistance) * (1.0 - smoothstep(uBox * 0.25, uBox * 0.5, length(local)));
 
-	gl_PointSize = uSize * (0.5 + aSeed.w) * uPixelRatio / max(viewDistance, 0.1);
+	float size = uSize * (0.5 + aSeed.w) * uPixelRatio / max(viewDistance, 0.1);
+	gl_PointSize = clamp(size, 1.0, 6.0 * uPixelRatio);
+	// Sub-pixel flakes shimmer: let the tiny ones go dimmer instead
+	vFade *= smoothstep(0.6, 1.6, size);
 	gl_Position = projectionMatrix * mvPosition;
 }

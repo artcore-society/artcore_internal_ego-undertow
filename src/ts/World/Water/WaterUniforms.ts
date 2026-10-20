@@ -17,6 +17,8 @@ export default class WaterUniforms implements IEnvironmentAware {
 	public readonly causticStrength = { value: 1 };
 	public readonly causticTint = { value: new Color('#bff6ff') };
 	public readonly surfaceY = { value: SURFACE_Y };
+	/** Murk density, for custom shaders that fade with distance themselves. */
+	public readonly fogDensity = { value: 0.03 };
 
 	/** Patch for lit materials: adds caustics, fading with depth and on surfaces that don't face up. */
 	public readonly caustics: IMaterialPatch = {
@@ -38,6 +40,7 @@ export default class WaterUniforms implements IEnvironmentAware {
 
 	public applyEnvironment(state: Readonly<IEnvironmentState>): void {
 		this.causticStrength.value = state.caustics;
+		this.fogDensity.value = state.fogDensity;
 	}
 
 	public update(elapsed: number): void {

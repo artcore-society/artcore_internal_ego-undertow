@@ -12,6 +12,8 @@ export interface IMaterialPatch {
 	/** After `project_vertex`: `transformed`, `transformedNormal` and `mvPosition` are known. */
 	readonly vertexPost?: string;
 	readonly fragmentHeader?: string;
+	/** After `color_fragment`: may change `diffuseColor` (albedo, after map and vertex colours). */
+	readonly fragmentColor?: string;
 	/** Before `opaque_fragment`: may change `outgoingLight` and `diffuseColor`. */
 	readonly fragmentLight?: string;
 }
