@@ -19,6 +19,11 @@
 
 - Sand, rock, coral rubble and sandstone — [Poly Haven](https://polyhaven.com), CC0.
 
+## Sounds
+
+- Surfacing splash ("Splash, Big #3") and the sea ("Pontoon, marina") by Joseph Sardin —
+  [BigSoundBank](https://bigsoundbank.com), CC0. Everything else is synthesised in the browser.
+
 ## Voices
 
 - Narration generated with [ElevenLabs](https://elevenlabs.io).
