@@ -330,7 +330,7 @@ export default class AtlantisScene extends DiveScene {
 				scale: this.random.range(0.7, 1),
 				rotation: new Euler(Math.PI / 2, this.random.range(0, Math.PI * 2), 0, 'YXZ')
 			})),
-			{ size: 12, sink: 0.15, isLying: true, material: this.stone() }
+			{ size: 12, sink: 0.15, material: this.stone() }
 		);
 
 		between(3, 24, 60).forEach((position, index) => {

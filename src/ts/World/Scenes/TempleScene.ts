@@ -200,7 +200,7 @@ export default class TempleScene extends DiveScene {
 				{ position: this.at(12.5, 32), scale: 0.85, rotation: new Euler(Math.PI / 2, 0.5, 0, 'YXZ') },
 				{ position: this.at(-14, 4), scale: 1, rotation: new Euler(Math.PI / 2, 1.3, 0, 'YXZ') }
 			],
-			{ size: TempleScene.COLUMN_HEIGHT, sink: 0.15, isLying: true, material: this.stone() }
+			{ size: TempleScene.COLUMN_HEIGHT, sink: 0.15, material: this.stone() }
 		);
 	}
 

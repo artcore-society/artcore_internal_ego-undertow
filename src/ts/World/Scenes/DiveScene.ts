@@ -170,8 +170,6 @@ export default abstract class DiveScene extends Group implements IDisposable {
 			readonly size?: number;
 			readonly sink?: number;
 			readonly isObstacle?: boolean;
-			/** Lying on its side (rotated 90° about X): rests on its flank instead of its base. */
-			readonly isLying?: boolean;
 			/** Keep the placement heights as given (e.g. on top of another model) instead of resting on the seabed. */
 			readonly isAboveGround?: boolean;
 			/** Use only this piece of a model that is a set of separate objects (see AssetLibrary.pieces). */
@@ -195,6 +193,12 @@ export default abstract class DiveScene extends Group implements IDisposable {
 			bounds.union(part.geometry.boundingBox ?? new Box3());
 		});
 
+		// Many scans sit off their own origin: centre them on their footprint first, or every rotation
+		// swings them away from the spot that was grounded
+		const offset = bounds.getCenter(new Vector3()).setY(0).negate();
+		parts.forEach((part) => part.geometry.translate(offset.x, 0, offset.z));
+		bounds.translate(offset);
+
 		const dimensions = bounds.getSize(new Vector3());
 		const normalise =
 			(options.size ?? Math.max(dimensions.x, dimensions.y, dimensions.z)) /
@@ -206,10 +210,17 @@ export default abstract class DiveScene extends Group implements IDisposable {
 		const position = new Vector3();
 		const tint = new Color();
 
+		const placed = new Box3();
 		const grounded = placements.map((placement) => {
-			const factor = typeof placement.scale === 'number' ? placement.scale : placement.scale.y;
-			const footprint =
-				(options.isLying ? dimensions.y : Math.max(dimensions.x, dimensions.z)) * normalise * factor * 0.5;
+			// The model's box as it will stand: rotated and scaled, so tilted or lying models rest on
+			// whatever side actually faces down
+			rotation.setFromEuler(placement.rotation ?? new Euler());
+			scale
+				.copy(typeof placement.scale === 'number' ? new Vector3().setScalar(placement.scale) : placement.scale)
+				.multiplyScalar(normalise);
+			placed.copy(bounds).applyMatrix4(matrix.compose(new Vector3(), rotation, scale));
+
+			const footprint = Math.max(placed.max.x - placed.min.x, placed.max.z - placed.min.z) * 0.5;
 			position.copy(placement.position);
 
 			// Rest on the lowest seabed under the whole footprint: on a slope nothing hangs in the water
@@ -217,14 +228,7 @@ export default abstract class DiveScene extends Group implements IDisposable {
 				position.y = this.floorUnder(position.x, position.z, footprint);
 			}
 
-			if (options.isLying) {
-				// On its side the model's thickness is what touches the ground
-				const radius = (Math.max(dimensions.x, dimensions.z) / 2) * normalise * factor;
-				position.y += radius * (1 - sink);
-			} else {
-				const height = dimensions.y * normalise * factor;
-				position.y += -bounds.min.y * normalise * factor - height * sink;
-			}
+			position.y += -placed.min.y - (placed.max.y - placed.min.y) * sink;
 
 			return { ...placement, position: position.clone() };
 		});
@@ -278,7 +282,6 @@ export default abstract class DiveScene extends Group implements IDisposable {
 		return material;
 	}
 
-	/** A single copy of a model, scaled so its longest side is `size` metres, resting its base at `position`. */
 	/**
 	 * A single copy of a model, scaled so its longest side is `size` metres. It rests on the lowest
 	 * seabed under its footprint (sunk by `sink` of its height), unless `isAboveGround` keeps `position.y`.
@@ -293,19 +296,34 @@ export default abstract class DiveScene extends Group implements IDisposable {
 		const model = this.context.assets.model(name);
 		const box = new Box3().setFromObject(model);
 		const dimensions = box.getSize(new Vector3());
+		const centre = box.getCenter(new Vector3());
 		const scale = size / Math.max(dimensions.x, dimensions.y, dimensions.z);
+
+		// Centred inside a holder, so rotating the holder turns (or tilts) the model in place
+		model.scale.setScalar(scale);
+		model.position.copy(centre).multiplyScalar(-scale);
+
+		const holder = new Group();
+		holder.add(model);
+		holder.rotation.copy(rotation);
+		holder.updateMatrixWorld(true);
+
+		// Ground it by the box it has as it stands, so a tilted model rests on its lowest side
+		const placed = new Box3().setFromObject(holder);
 		const base = options.isAboveGround
 			? position.y
-			: this.floorUnder(position.x, position.z, Math.max(dimensions.x, dimensions.z) * scale * 0.5);
+			: this.floorUnder(
+					position.x,
+					position.z,
+					Math.max(placed.max.x - placed.min.x, placed.max.z - placed.min.z) * 0.5
+				);
 
-		model.scale.setScalar(scale);
-		model.rotation.copy(rotation);
-		model.position.set(
+		holder.position.set(
 			position.x,
-			base - box.min.y * scale - dimensions.y * scale * (options.sink ?? 0.04),
+			base - placed.min.y - (placed.max.y - placed.min.y) * (options.sink ?? 0.04),
 			position.z
 		);
-		this.add(model);
+		this.add(holder);
 
 		return model;
 	}
