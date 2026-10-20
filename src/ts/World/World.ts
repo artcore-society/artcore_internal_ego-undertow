@@ -11,7 +11,6 @@ import SceneLighting from './Lighting/SceneLighting.ts';
 import Atmosphere from './Lighting/Atmosphere.ts';
 import LifePatches from './Life/LifePatches.ts';
 import FishSchool from './Life/FishSchool.ts';
-import PropFactory from './Props/PropFactory.ts';
 import ReefScene from './Scenes/ReefScene.ts';
 import KelpScene from './Scenes/KelpScene.ts';
 import WreckScene from './Scenes/WreckScene.ts';
@@ -53,7 +52,6 @@ export default class World implements IResizable, IDisposable {
 	public readonly bubbles = new DiverBubbles();
 
 	private readonly _patches = new LifePatches(this.water);
-	private readonly _props = new PropFactory(this.water);
 	private _trail: LightTrail | null = null;
 
 	constructor(assets: AssetLibrary, environment: Texture) {
@@ -82,7 +80,6 @@ export default class World implements IResizable, IDisposable {
 		const context: ISceneContext = {
 			water: this.water,
 			patches: this._patches,
-			props: this._props,
 			assets,
 			terrain: this.seabed,
 			fish: FishSchool.template(fishPart, true)
@@ -195,8 +192,7 @@ export default class World implements IResizable, IDisposable {
 			this.snow,
 			...this.scenes,
 			this.beacon,
-			this.bubbles,
-			this._props
+			this.bubbles
 		];
 
 		disposables.forEach((disposable) => disposable.dispose());

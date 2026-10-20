@@ -180,7 +180,7 @@ export default class ReefScene extends DiveScene {
 		chainMesh.position.copy(this.marker).setY(this.marker.y + chainLength / 2);
 		this.add(chainMesh);
 
-		this.placeModel('ocean_buoy', this.marker.clone().setY(SURFACE_Y - 2.4), 3.2);
+		this.placeModel('ocean_buoy', this.marker.clone().setY(SURFACE_Y - 2.4), 3.2, new Euler(), { isAboveGround: true });
 		this.placeModel(
 			'vintage_radio_transceiver',
 			this.marker.clone().setY(this.marker.y - 0.9),

@@ -1,9 +1,9 @@
 import {
 	BufferAttribute,
+	BufferGeometry,
 	LoadingManager,
 	Mesh,
 	type AnimationClip,
-	type BufferGeometry,
 	type Group,
 	type Material,
 	type Object3D,
@@ -48,6 +48,7 @@ export default class AssetLibrary implements IDisposable {
 	private readonly _manager = new LoadingManager();
 	private readonly _models = new Map<ModelName, Group>();
 	private readonly _animations = new Map<ModelName, readonly AnimationClip[]>();
+	private readonly _pieces = new Map<ModelName, IModelPart[]>();
 	private readonly _textures = new Map<string, Texture>();
 	private readonly _voices = new Map<string, ArrayBuffer>();
 	private readonly _anisotropy: number;
@@ -130,6 +131,106 @@ export default class AssetLibrary implements IDisposable {
 		});
 
 		return parts;
+	}
+
+	/**
+	 * A model that is really a set of separate objects (e.g. a row of rune stones) split into one part
+	 * per object, each centred on its own footprint, so every piece can be placed and grounded alone.
+	 * Pieces are the mesh's connected components: triangles sharing a vertex position belong together.
+	 */
+	public pieces(name: ModelName): IModelPart[] {
+		let pieces = this._pieces.get(name);
+
+		if (!pieces) {
+			pieces = this.parts(name).flatMap((part) => AssetLibrary.splitIntoComponents(part));
+			this._pieces.set(name, pieces);
+		}
+
+		return pieces;
+	}
+
+	private static splitIntoComponents(part: IModelPart): IModelPart[] {
+		const geometry = part.geometry.index ? part.geometry.toNonIndexed() : part.geometry;
+		const position = geometry.getAttribute('position');
+		const triangles = position.count / 3;
+		const parent = [...Array(triangles).keys()];
+		const owner = new Map<string, number>();
+
+		const find = (triangle: number): number => {
+			let root = triangle;
+
+			while (parent[root] !== root) {
+				root = parent[root] ?? root;
+			}
+
+			parent[triangle] = root;
+
+			return root;
+		};
+
+		// Union triangles that share a (rounded) vertex position
+		for (let triangle = 0; triangle < triangles; triangle++) {
+			for (let corner = 0; corner < 3; corner++) {
+				const vertex = triangle * 3 + corner;
+				const key = `${position.getX(vertex).toFixed(4)},${position.getY(vertex).toFixed(4)},${position.getZ(vertex).toFixed(4)}`;
+				const other = owner.get(key);
+
+				if (other === undefined) {
+					owner.set(key, triangle);
+				} else {
+					parent[find(triangle)] = find(other);
+				}
+			}
+		}
+
+		const groups = new Map<number, number[]>();
+
+		for (let triangle = 0; triangle < triangles; triangle++) {
+			const root = find(triangle);
+			const group = groups.get(root);
+
+			if (group) {
+				group.push(triangle);
+			} else {
+				groups.set(root, [triangle]);
+			}
+		}
+
+		// Ignore crumbs (stray loose triangles): keep components with a meaningful share of the mesh
+		const minimum = triangles * 0.02;
+
+		return [...groups.values()]
+			.filter((group) => group.length >= minimum)
+			.map((triangleIndices) => {
+				const piece = new BufferGeometry();
+
+				for (const name of Object.keys(geometry.attributes)) {
+					const source = geometry.getAttribute(name);
+					const values = new Float32Array(triangleIndices.length * 3 * source.itemSize);
+
+					triangleIndices.forEach((triangle, slot) => {
+						for (let corner = 0; corner < 3; corner++) {
+							for (let component = 0; component < source.itemSize; component++) {
+								values[(slot * 3 + corner) * source.itemSize + component] = source.getComponent(
+									triangle * 3 + corner,
+									component
+								);
+							}
+						}
+					});
+
+					piece.setAttribute(name, new BufferAttribute(values, source.itemSize));
+				}
+
+				piece.computeBoundingBox();
+				const box = piece.boundingBox;
+
+				if (box) {
+					piece.translate(-(box.min.x + box.max.x) / 2, 0, -(box.min.z + box.max.z) / 2);
+				}
+
+				return { geometry: piece, material: part.material };
+			});
 	}
 
 	public texture(set: TextureSet, map: TextureMap): Texture {

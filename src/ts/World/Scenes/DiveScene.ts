@@ -19,7 +19,7 @@ import type ISceneContext from './ISceneContext.ts';
 import type IDisposable from '../../Contracts/IDisposable.ts';
 import type IFrameContext from '../../Contracts/IFrameContext.ts';
 import type { ModelName } from '../../Config/assets.ts';
-import type { IPropPlacement } from '../Props/PropFactory.ts';
+import type { IPropPlacement } from './IPropPlacement.ts';
 
 /**
  * One place along the descent. Owns its props and life, and hides itself when the camera is too far
@@ -172,6 +172,10 @@ export default abstract class DiveScene extends Group implements IDisposable {
 			readonly isObstacle?: boolean;
 			/** Lying on its side (rotated 90° about X): rests on its flank instead of its base. */
 			readonly isLying?: boolean;
+			/** Keep the placement heights as given (e.g. on top of another model) instead of resting on the seabed. */
+			readonly isAboveGround?: boolean;
+			/** Use only this piece of a model that is a set of separate objects (see AssetLibrary.pieces). */
+			readonly piece?: number;
 			readonly material?: { readonly color?: string; readonly patches?: readonly IMaterialPatch[] };
 		} = {}
 	): MeshStandardMaterial[] {
@@ -181,7 +185,10 @@ export default abstract class DiveScene extends Group implements IDisposable {
 			return materials;
 		}
 
-		const parts = this.context.assets.parts(name);
+		const parts =
+			options.piece === undefined
+				? this.context.assets.parts(name)
+				: this.context.assets.pieces(name).filter((_part, index) => index === options.piece);
 		const bounds = new Box3();
 		parts.forEach((part) => {
 			part.geometry.computeBoundingBox();
@@ -201,7 +208,14 @@ export default abstract class DiveScene extends Group implements IDisposable {
 
 		const grounded = placements.map((placement) => {
 			const factor = typeof placement.scale === 'number' ? placement.scale : placement.scale.y;
+			const footprint =
+				(options.isLying ? dimensions.y : Math.max(dimensions.x, dimensions.z)) * normalise * factor * 0.5;
 			position.copy(placement.position);
+
+			// Rest on the lowest seabed under the whole footprint: on a slope nothing hangs in the water
+			if (!options.isAboveGround) {
+				position.y = this.floorUnder(position.x, position.z, footprint);
+			}
 
 			if (options.isLying) {
 				// On its side the model's thickness is what touches the ground
@@ -265,18 +279,50 @@ export default abstract class DiveScene extends Group implements IDisposable {
 	}
 
 	/** A single copy of a model, scaled so its longest side is `size` metres, resting its base at `position`. */
-	protected placeModel(name: ModelName, position: Vector3, size: number, rotation = new Euler()): Object3D {
+	/**
+	 * A single copy of a model, scaled so its longest side is `size` metres. It rests on the lowest
+	 * seabed under its footprint (sunk by `sink` of its height), unless `isAboveGround` keeps `position.y`.
+	 */
+	protected placeModel(
+		name: ModelName,
+		position: Vector3,
+		size: number,
+		rotation = new Euler(),
+		options: { readonly sink?: number; readonly isAboveGround?: boolean } = {}
+	): Object3D {
 		const model = this.context.assets.model(name);
 		const box = new Box3().setFromObject(model);
 		const dimensions = box.getSize(new Vector3());
 		const scale = size / Math.max(dimensions.x, dimensions.y, dimensions.z);
+		const base = options.isAboveGround
+			? position.y
+			: this.floorUnder(position.x, position.z, Math.max(dimensions.x, dimensions.z) * scale * 0.5);
 
 		model.scale.setScalar(scale);
 		model.rotation.copy(rotation);
-		model.position.copy(position).sub(new Vector3(0, box.min.y * scale, 0));
+		model.position.set(
+			position.x,
+			base - box.min.y * scale - dimensions.y * scale * (options.sink ?? 0.04),
+			position.z
+		);
 		this.add(model);
 
 		return model;
+	}
+
+	/** The lowest seabed under a round footprint: the centre and a ring of eight points around it. */
+	protected floorUnder(x: number, z: number, radius: number): number {
+		let lowest = this.context.terrain.heightAt(x, z);
+
+		for (let i = 0; i < 8; i++) {
+			const angle = (i / 8) * Math.PI * 2;
+			lowest = Math.min(
+				lowest,
+				this.context.terrain.heightAt(x + Math.cos(angle) * radius, z + Math.sin(angle) * radius)
+			);
+		}
+
+		return lowest;
 	}
 
 	protected school(centre: Vector3, options: IFishSchoolOptions): FishSchool {
@@ -284,6 +330,23 @@ export default abstract class DiveScene extends Group implements IDisposable {
 		school.position.copy(centre);
 
 		return school;
+	}
+
+	/**
+	 * Rune stones, each slab of the Elder Stones set placed on its own (cycling through its carvings)
+	 * and grounded on its own.
+	 * @returns their materials (own copies), to light the runes later
+	 */
+	protected runeStones(placements: readonly IPropPlacement[], size: number): MeshStandardMaterial[] {
+		const kinds = this.context.assets.pieces('elder_stones').length;
+		const materials: MeshStandardMaterial[] = [];
+
+		for (let piece = 0; piece < kinds; piece++) {
+			const mine = placements.filter((_placement, index) => index % kinds === piece);
+			materials.push(...this.instancedModel('elder_stones', mine, { size, sink: 0.08, piece, material: {} }));
+		}
+
+		return materials;
 	}
 
 	/** A few big, slow fish patrolling wide circles: something large is always moving out in the murk. */
