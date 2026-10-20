@@ -1,0 +1,24 @@
+@layer atoms {
+  .meter {
+    block-size: var(--space-8);
+    border-radius: var(--rounded-pill);
+    background: var(--color-track);
+    overflow: hidden;
+
+    &__fill {
+      block-size: 100%;
+      inline-size: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--color-accent), var(--color-white));
+      transform-origin: left;
+      transform: scaleX(var(--meter-value));
+      transition:
+        transform var(--transition-duration-150) linear,
+        box-shadow var(--transition-duration-300);
+    }
+
+    &[data-active] &__fill {
+      box-shadow: 0 0 18px var(--color-accent);
+    }
+  }
+}

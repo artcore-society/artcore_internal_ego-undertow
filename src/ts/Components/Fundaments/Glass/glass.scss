@@ -1,0 +1,36 @@
+@use 'sass:list';
+@use 'sass:map';
+@use '../../Sass/sass.scss';
+
+@layer fundaments {
+  :root {
+    @each $name, $size in sass.$rounded-sizes {
+      --rounded-#{$name}: #{sass.rem($size)};
+    }
+
+    @each $name, $size in sass.$border-sizes {
+      --border-#{$name}: #{$size};
+    }
+
+    @each $name, $pair in sass.$gutter-sizes {
+      --gutter-#{$name}: #{sass.fluid(list.nth($pair, 1), list.nth($pair, 2))};
+    }
+
+    @each $size in sass.$spacing-sizes {
+      --space-#{$size}: #{sass.rem($size * 1px)};
+    }
+  }
+
+  // Frosted surface over the canvas; pair with data-theme="glass"
+  [data-glass]:not([data-glass='false']) {
+    background: var(--color-background);
+    border: var(--border-s) solid var(--color-border);
+    backdrop-filter: blur(14px) saturate(140%);
+  }
+
+  @each $name, $size in sass.$rounded-sizes {
+    [data-rounded='#{$name}'] {
+      border-radius: var(--rounded-#{$name});
+    }
+  }
+}

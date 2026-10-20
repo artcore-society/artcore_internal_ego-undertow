@@ -1,0 +1,14 @@
+@layer atoms {
+  .wave {
+    display: block;
+    inline-size: var(--space-80);
+    block-size: 8px;
+    background: var(--color-accent);
+    mask: var(--wave) left center / auto 100% repeat-x;
+    opacity: 0.85;
+
+    &[data-size='l'] {
+      inline-size: 12rem;
+    }
+  }
+}

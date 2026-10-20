@@ -1,0 +1,41 @@
+@layer fundaments {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #app {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    overscroll-behavior: none;
+    background: var(--color-background);
+  }
+
+  :where(h1, h2, h3, h4, h5, h6, p, dl, dd, figure) {
+    margin: 0;
+  }
+
+  :where(ul, ol) {
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+  }
+
+  :where(button) {
+    font: inherit;
+    color: inherit;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+
+  canvas {
+    touch-action: none;
+  }
+}

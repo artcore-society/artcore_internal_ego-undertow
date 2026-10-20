@@ -1,0 +1,50 @@
+@use 'sass:math';
+@use 'sass:map';
+@use 'sass:string';
+@use 'tokens';
+
+@function breakpoint($breakpoint, $offset: 0) {
+  @return map.get(tokens.$breakpoints, $breakpoint) + 0px + $offset;
+}
+
+@function color($name) {
+  @return map.get(tokens.$colors, $name);
+}
+
+@function strip-unit($number) {
+  @return math.div($number, ($number * 0 + 1));
+}
+
+@function rem($px) {
+  @return math.div(strip-unit($px), 16) + 0rem;
+}
+
+@function rnd($number, $places: 0) {
+  $n: math.pow(10, $places);
+
+  @return math.div(math.round($number * $n), $n);
+}
+
+// Scales linearly between $min-px at the sm breakpoint and $max-px at hd (viewport based:
+// the HUD is full-screen chrome). Built as a string so Dart Sass keeps the inner calc().
+@function fluid($min-px, $max-px, $slope-unit: vw, $min-bp: breakpoint('sm'), $max-bp: breakpoint('hd')) {
+  $slope: math.div($max-px - $min-px, $max-bp - $min-bp);
+  $slope-perc: rnd($slope * 100, 2);
+  $intercept-rems: rnd(rem($min-px - $slope * $min-bp), 2);
+  $min-rems: rnd(rem(math.min($min-px, $max-px)), 2);
+  $max-rems: rnd(rem(math.max($min-px, $max-px)), 2);
+
+  @return string.unquote('clamp(#{$min-rems}, calc(#{$intercept-rems} + #{$slope-perc}#{$slope-unit}), #{$max-rems})');
+}
+
+@mixin breakpoint-up($breakpoint) {
+  @media (width >= breakpoint($breakpoint)) {
+    @content;
+  }
+}
+
+@mixin reduced-motion {
+  @media (prefers-reduced-motion: reduce) {
+    @content;
+  }
+}

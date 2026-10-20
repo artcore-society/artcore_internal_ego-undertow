@@ -1,0 +1,43 @@
+@use '../../Sass/sass.scss';
+
+@layer fundaments {
+  :root {
+    @each $duration in sass.$durations {
+      --transition-duration-#{$duration}: #{$duration}ms;
+    }
+
+    --transition-duration: var(--transition-duration-250);
+    --transition-easing-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --transition-easing-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --transition-easing-spring: cubic-bezier(0.2, 1.6, 0.4, 1);
+  }
+
+  // <Transition name="fade">: soft blur-rise used by every overlay
+  .fade-enter-active,
+  .fade-leave-active {
+    transition:
+      opacity var(--transition-duration-800) var(--transition-easing-out),
+      transform var(--transition-duration-800) var(--transition-easing-out),
+      filter var(--transition-duration-800) var(--transition-easing-out);
+  }
+
+  .fade-enter-from,
+  .fade-leave-to {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(6px);
+  }
+
+  @include sass.reduced-motion {
+    .fade-enter-active,
+    .fade-leave-active {
+      transition: opacity var(--transition-duration-200);
+    }
+
+    .fade-enter-from,
+    .fade-leave-to {
+      transform: none;
+      filter: none;
+    }
+  }
+}

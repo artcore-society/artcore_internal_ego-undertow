@@ -1,0 +1,49 @@
+@use '../../Sass/sass.scss';
+
+@layer organisms {
+  .ending-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 25;
+    display: flex;
+    align-items: flex-end;
+    padding: var(--gutter-l) var(--gutter-m);
+    overflow-y: auto;
+    // Sunset bleeding down from the surface
+    background: linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--color-sun) 30%, transparent),
+      color-mix(in oklab, var(--color-coral) 14%, transparent) 30%,
+      color-mix(in oklab, var(--color-abyss) 88%, transparent) 75%
+    );
+
+    &__content {
+      max-inline-size: 44rem;
+    }
+
+    &__text {
+      max-inline-size: 34rem;
+    }
+
+    &__stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-16) var(--space-32);
+
+      @include sass.breakpoint-up(md) {
+        grid-template-columns: repeat(4, auto);
+      }
+    }
+
+    &__stat {
+      display: grid;
+      gap: var(--space-4);
+    }
+
+    &__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-12);
+    }
+  }
+}

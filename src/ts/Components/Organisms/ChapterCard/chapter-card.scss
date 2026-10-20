@@ -1,0 +1,53 @@
+@use '../../Sass/sass.scss';
+
+@layer organisms {
+  .chapter-card {
+    position: absolute;
+    inset: 0;
+    z-index: 15;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: var(--space-12);
+    text-align: center;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, color-mix(in oklab, var(--color-abyss) 55%, transparent), transparent 65%);
+    animation: chapter-card 5.5s var(--transition-easing-in-out) both;
+
+    @include sass.reduced-motion {
+      animation-name: chapter-card-fade;
+    }
+  }
+
+  @keyframes chapter-card {
+    0% {
+      opacity: 0;
+      letter-spacing: 0.4em;
+      filter: blur(8px);
+    }
+
+    18%,
+    78% {
+      opacity: 1;
+      letter-spacing: 0;
+      filter: blur(0);
+    }
+
+    100% {
+      opacity: 0;
+      filter: blur(6px);
+    }
+  }
+
+  @keyframes chapter-card-fade {
+    0%,
+    100% {
+      opacity: 0;
+    }
+
+    15%,
+    80% {
+      opacity: 1;
+    }
+  }
+}

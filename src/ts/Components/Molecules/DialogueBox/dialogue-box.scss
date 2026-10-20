@@ -1,0 +1,49 @@
+@layer molecules {
+  .dialogue-box {
+    display: grid;
+    gap: var(--space-8);
+    inline-size: min(40rem, 88vw);
+    padding: var(--space-16) var(--space-24);
+    pointer-events: auto;
+    cursor: pointer;
+
+    &__speaker {
+      display: flex;
+      align-items: center;
+      gap: var(--space-8);
+
+      &::before {
+        content: '';
+        inline-size: var(--space-6);
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: var(--speaker-color, var(--color-accent));
+        box-shadow: 0 0 10px var(--speaker-color, var(--color-accent));
+      }
+    }
+
+    &[data-speaker='Kai'] {
+      --speaker-color: var(--color-sun);
+    }
+
+    &[data-speaker='Mara'] {
+      --speaker-color: var(--color-bio);
+    }
+
+    &[data-speaker='You'] {
+      --speaker-color: var(--color-foam);
+    }
+
+    &[data-speaker='The Deep'] {
+      --speaker-color: var(--color-violet);
+    }
+
+    // The Deep speaks without a radio: no panel, just words in the water
+    &[data-speaker='The Deep'] .dialogue-box__text {
+      font-family: var(--text-font-display);
+      font-style: italic;
+      font-size: var(--text-font-size-h2);
+      line-height: 1.15;
+    }
+  }
+}

@@ -1,0 +1,8 @@
+@layer molecules {
+  .objective-card {
+    display: grid;
+    gap: var(--space-8);
+    inline-size: 17rem;
+    padding: var(--space-16) var(--space-20);
+  }
+}

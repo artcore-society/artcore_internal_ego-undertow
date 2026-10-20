@@ -1,0 +1,14 @@
+@layer organisms {
+  .dive-experience {
+    position: absolute;
+    inset: 0;
+    user-select: none;
+
+    &__canvas {
+      display: block;
+      inline-size: 100%;
+      block-size: 100%;
+      outline: none;
+    }
+  }
+}

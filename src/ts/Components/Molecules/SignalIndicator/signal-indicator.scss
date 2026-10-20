@@ -1,0 +1,29 @@
+@layer molecules {
+  .signal-indicator {
+    position: absolute;
+    inset-inline-start: var(--signal-x);
+    inset-block-start: var(--signal-y);
+    display: grid;
+    justify-items: center;
+    gap: var(--space-4);
+    translate: -50% -50%;
+    transition:
+      inset-inline-start var(--transition-duration-150) linear,
+      inset-block-start var(--transition-duration-150) linear,
+      opacity var(--transition-duration-300);
+
+    &__arrow {
+      inline-size: 0;
+      block-size: 0;
+      border-inline: 9px solid transparent;
+      border-block-end: 16px solid var(--color-accent);
+      rotate: var(--signal-angle);
+      filter: drop-shadow(0 0 8px var(--color-accent));
+    }
+
+    // On screen the beacon itself does the talking
+    &[data-visible] {
+      opacity: 0;
+    }
+  }
+}

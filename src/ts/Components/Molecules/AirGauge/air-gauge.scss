@@ -1,0 +1,26 @@
+@layer molecules {
+  .air-gauge {
+    display: grid;
+    gap: var(--space-8);
+    inline-size: 14rem;
+
+    &__header {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    &[data-low] {
+      --color-accent: var(--color-danger);
+    }
+
+    &__warning {
+      animation: air-gauge-blink 1s steps(2, jump-none) infinite;
+    }
+  }
+
+  @keyframes air-gauge-blink {
+    50% {
+      opacity: 0.4;
+    }
+  }
+}

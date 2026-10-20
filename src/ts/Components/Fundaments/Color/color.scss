@@ -1,0 +1,10 @@
+@use 'sass:map';
+@use '../../Sass/sass.scss';
+
+@layer fundaments {
+  :root {
+    @each $name, $value in sass.$colors {
+      --color-#{$name}: #{$value};
+    }
+  }
+}

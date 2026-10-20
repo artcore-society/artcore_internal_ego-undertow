@@ -1,0 +1,110 @@
+// Brand palette (raw values; components use theme tokens, never these directly)
+$colors: (
+  "abyss": #020b14,
+  "abyss-900": #061826,
+  "deep": #0b2a3f,
+  "foam": #e6f6f7,
+  "white": #ffffff,
+  "bio": #5ef2e0,
+  "aqua": #8be9ff,
+  "coral": #ff7a59,
+  "sun": #ffc677,
+  "violet": #9d7bff,
+  "danger": #ff5a4e,
+);
+
+// Breakpoints
+$breakpoints: (
+  sm: 390,
+  md: 640,
+  lg: 1024,
+  xl: 1280,
+  hd: 1920,
+);
+
+// Component-level spacing (padding, gaps, gutters)
+$spacing-sizes: (0, 2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80);
+
+// Fluid spacing pairs (mobile, desktop) for edge gutters
+$gutter-sizes: (
+  s: (16px, 32px),
+  m: (24px, 56px),
+  l: (32px, 96px),
+);
+
+// Motion
+$durations: (0, 100, 150, 200, 250, 300, 400, 500, 600, 800, 1000, 1400);
+
+// Typography — `size` is a (min, max) px pair for fluid(), or a single px value for rem()
+// Instrument Serif for the story's voice, Space Grotesk for reading, JetBrains Mono for instruments.
+$display-font: '"Instrument Serif", "Times New Roman", serif';
+$text-font: '"Space Grotesk", system-ui, sans-serif';
+$instrument-font: '"JetBrains Mono", ui-monospace, monospace';
+
+$typography: (
+  // Title on the intro screen and chapter cards
+  display: (
+    size: (60px, 156px),
+    line-height: 0.88,
+    weight: 400,
+    font: $display-font,
+    style: italic,
+  ),
+  // Big numbers: score, results
+  numeral: (
+    size: (40px, 72px),
+    line-height: 1,
+    weight: 400,
+    font: $instrument-font,
+  ),
+  h1: (
+    size: (36px, 58px),
+    line-height: 1,
+    weight: 400,
+    font: $display-font,
+  ),
+  h2: (
+    size: (26px, 36px),
+    line-height: 1.05,
+    weight: 400,
+    font: $display-font,
+  ),
+  lead: (
+    size: (17px, 20px),
+    line-height: 1.5,
+    weight: 400,
+  ),
+  body: (
+    size: (15px, 16px),
+    line-height: 1.5,
+    weight: 400,
+  ),
+  label: (
+    size: 11px,
+    line-height: 1.1,
+    weight: 500,
+    font: $instrument-font,
+    transform: uppercase,
+    tracking: 0.18em,
+  ),
+  button: (
+    size: 13px,
+    line-height: 1,
+    weight: 700,
+    font: $instrument-font,
+    transform: uppercase,
+    tracking: 0.14em,
+  ),
+);
+
+$rounded-sizes: (
+  s: 4px,
+  m: 10px,
+  l: 18px,
+  pill: 999px,
+);
+
+$border-sizes: (
+  s: 1px,
+  m: 2px,
+);

@@ -1,0 +1,46 @@
+@use '../../Sass/sass.scss';
+
+@layer atoms {
+  .pulse {
+    position: relative;
+    inline-size: var(--space-48);
+    aspect-ratio: 1;
+
+    &::before,
+    &::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+    }
+
+    &::before {
+      inset: 0;
+      border: var(--border-s) solid var(--color-accent);
+      animation: pulse-ring 1.6s var(--transition-easing-out) infinite;
+    }
+
+    &::after {
+      inset: var(--space-12);
+      background: var(--color-accent);
+      filter: blur(2px);
+    }
+
+    @include sass.reduced-motion {
+      &::before {
+        animation: none;
+      }
+    }
+  }
+
+  @keyframes pulse-ring {
+    from {
+      opacity: 1;
+      transform: scale(0.6);
+    }
+
+    to {
+      opacity: 0;
+      transform: scale(1.6);
+    }
+  }
+}

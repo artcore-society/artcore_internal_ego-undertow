@@ -1,0 +1,28 @@
+// Registered as <length> so the gap is computed once on the container, not per child font-size
+@property --flow-gap {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+@layer fundaments {
+  [data-flow]:not([data-flow='false']) {
+    --flow-gap: var(--flow-size, 1em);
+
+    & > * {
+      margin: 0;
+    }
+
+    & > * + * {
+      margin-block-start: var(--flow-gap);
+    }
+  }
+
+  [data-flow='s'] {
+    --flow-size: 0.5em;
+  }
+
+  [data-flow='l'] {
+    --flow-size: 2em;
+  }
+}

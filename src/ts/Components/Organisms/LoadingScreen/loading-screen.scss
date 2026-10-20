@@ -1,0 +1,12 @@
+@layer organisms {
+  .loading-screen {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: var(--space-24);
+    background: var(--color-background);
+  }
+}

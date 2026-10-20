@@ -1,0 +1,28 @@
+@layer theme {
+  :root,
+  [data-theme='deep'] {
+    --color-background: var(--color-abyss);
+    --color-text: var(--color-foam);
+    --color-text-muted: color-mix(in oklab, var(--color-foam) 72%, transparent);
+    --color-text-subtle: color-mix(in oklab, var(--color-foam) 48%, transparent);
+    --color-accent: var(--color-bio);
+    --color-highlight: var(--color-aqua);
+    --color-eyebrow: var(--color-sun);
+    --color-danger: var(--color-danger);
+    --color-border: color-mix(in oklab, var(--color-bio) 30%, transparent);
+    --color-track: color-mix(in oklab, var(--color-foam) 12%, transparent);
+    --color-surface: color-mix(in oklab, var(--color-bio) 7%, transparent);
+    --color-glow-shadow: color-mix(in oklab, var(--color-bio) 45%, transparent);
+
+    --color-button-text: var(--color-abyss);
+    --color-button-background: var(--color-bio);
+    --color-button-background-hover: var(--color-foam);
+    --color-button-secondary-text: var(--color-text-muted);
+    --color-button-secondary-text-hover: var(--color-text);
+  }
+
+  // Frosted panel over the WebGL canvas: like looking through the glass of a mask
+  [data-theme='glass'] {
+    --color-background: color-mix(in oklab, var(--color-abyss-900) 58%, transparent);
+  }
+}

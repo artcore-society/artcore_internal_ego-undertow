@@ -1,0 +1,9 @@
+@layer layouts {
+  .app-layout {
+    position: relative;
+    block-size: 100dvh;
+    inline-size: 100%;
+    overflow: hidden;
+    background: var(--color-background);
+  }
+}

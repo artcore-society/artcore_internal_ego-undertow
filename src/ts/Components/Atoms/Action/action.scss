@@ -1,0 +1,66 @@
+@layer atoms {
+  .action {
+    --action-padding-block: var(--space-16);
+    --action-padding-inline: var(--space-32);
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-12);
+    padding: var(--action-padding-block) var(--action-padding-inline);
+    border-radius: var(--rounded-pill);
+    color: var(--action-color);
+    background: var(--action-background);
+    transition:
+      color var(--transition-duration) var(--transition-easing-out),
+      background var(--transition-duration) var(--transition-easing-out),
+      box-shadow var(--transition-duration-400) var(--transition-easing-out);
+
+    &:focus-visible {
+      outline: var(--border-m) solid var(--color-accent);
+      outline-offset: var(--space-4);
+    }
+
+    &__arrow {
+      transition: transform var(--transition-duration) var(--transition-easing-spring);
+    }
+
+    &:hover &__arrow {
+      transform: translateX(var(--space-4));
+    }
+
+    &[data-variant='button'] {
+      --action-color: var(--color-button-text);
+      --action-background: var(--color-button-background);
+
+      &:hover {
+        --action-background: var(--color-button-background-hover);
+
+        box-shadow: 0 0 40px var(--color-glow-shadow);
+      }
+    }
+
+    &[data-variant='button-secondary'] {
+      --action-color: var(--color-button-secondary-text);
+      --action-background: transparent;
+      --action-padding-inline: var(--space-16);
+
+      &:hover {
+        --action-color: var(--color-button-secondary-text-hover);
+      }
+    }
+
+    // Small frosted control in the toolbar
+    &[data-variant='glass'] {
+      --action-color: var(--color-text-muted);
+      --action-padding-block: var(--space-8);
+      --action-padding-inline: var(--space-16);
+
+      pointer-events: auto;
+      gap: var(--space-8);
+
+      &:hover {
+        --action-color: var(--color-text);
+      }
+    }
+  }
+}

@@ -1,0 +1,92 @@
+@use 'sass:list';
+@use 'sass:map';
+@use '../../Sass/sass.scss';
+
+@layer atoms {
+  :root {
+    --text-font-default: #{sass.$text-font};
+
+    @each $name, $props in sass.$typography {
+      $size: map.get($props, size);
+
+      @if list.length($size) == 2 {
+        --text-font-size-#{$name}: #{sass.fluid(list.nth($size, 1), list.nth($size, 2))};
+      } @else {
+        --text-font-size-#{$name}: #{sass.rem($size)};
+      }
+
+      --text-line-height-#{$name}: #{map.get($props, line-height)};
+      --text-font-weight-#{$name}: #{map.get($props, weight)};
+
+      @each $property in (font, transform, tracking, style) {
+        $value: map.get($props, $property);
+
+        @if $value {
+          --text-#{$property}-#{$name}: #{$value};
+        }
+      }
+    }
+  }
+
+  body {
+    color: var(--color-text);
+    font-family: var(--text-font-default);
+    font-size: var(--text-font-size-body);
+    font-weight: var(--text-font-weight-body);
+    line-height: var(--text-line-height-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .text {
+    color: var(--text-color, inherit);
+    font-family: var(--text-font, var(--text-font-default));
+    font-size: var(--text-font-size, inherit);
+    font-weight: var(--text-font-weight, inherit);
+    font-style: var(--text-style, normal);
+    line-height: var(--text-line-height, inherit);
+    letter-spacing: var(--text-tracking, normal);
+    text-transform: var(--text-transform, none);
+    text-wrap: pretty;
+
+    &[data-numeric] {
+      font-variant-numeric: tabular-nums;
+    }
+
+    &[data-glow] {
+      text-shadow: 0 0 24px var(--color-glow-shadow);
+    }
+
+    &[data-wrap='balance'] {
+      text-wrap: balance;
+    }
+  }
+
+  @each $size in map.keys(sass.$typography) {
+    [data-font-size='#{$size}'] {
+      --text-font: var(--text-font-#{$size}, var(--text-font-default));
+      --text-font-size: var(--text-font-size-#{$size});
+      --text-font-weight: var(--text-font-weight-#{$size});
+      --text-line-height: var(--text-line-height-#{$size});
+      --text-transform: var(--text-transform-#{$size}, none);
+      --text-tracking: var(--text-tracking-#{$size}, normal);
+      --text-style: var(--text-style-#{$size}, normal);
+    }
+  }
+
+  // data-color value → theme token
+  $text-colors: (
+    muted: text-muted,
+    subtle: text-subtle,
+    accent: accent,
+    highlight: highlight,
+    eyebrow: eyebrow,
+    danger: danger,
+  );
+
+  @each $name, $token in $text-colors {
+    [data-color='#{$name}'] {
+      --text-color: var(--color-#{$token});
+    }
+  }
+}
