@@ -24,7 +24,11 @@
     &__sweep {
       position: absolute;
       inset: 0;
-      background: conic-gradient(from 0deg, color-mix(in oklab, var(--color-accent) 45%, transparent), transparent 70deg);
+      background: conic-gradient(
+              from 0deg,
+              transparent,
+              color-mix(in oklab, var(--color-accent) 45%, transparent) 100%
+      );
       animation: sonar-sweep 3s linear infinite;
 
       @include sass.reduced-motion {
