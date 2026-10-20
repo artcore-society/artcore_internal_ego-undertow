@@ -1,8 +1,6 @@
 import {
-	BoxGeometry,
 	Color,
 	Euler,
-	Matrix4,
 	Mesh,
 	MeshBasicMaterial,
 	MeshStandardMaterial,
@@ -13,7 +11,6 @@ import {
 	type BufferGeometry,
 	type Material
 } from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import DiveScene from './DiveScene.ts';
 import JellyfishBloom from '../Life/JellyfishBloom.ts';
 import { triplanar } from '../Materials/triplanar.ts';
@@ -21,20 +18,22 @@ import { patchMaterial } from '../../Helpers/MaterialPatch.ts';
 import { damp } from '../../Helpers/math.ts';
 import { SCENES } from '../../Config/world.ts';
 import { SceneId } from '../../Enums/SceneId.ts';
-import type { IPropPlacement } from '../Props/PropFactory.ts';
+import type { IPropPlacement } from './IPropPlacement.ts';
 import type ISceneContext from './ISceneContext.ts';
 import type IFrameContext from '../../Contracts/IFrameContext.ts';
 
-type Block = readonly [x: number, y: number, z: number, width: number, height: number, depth: number];
-
 /**
- * V. The Drowned Temple: a broken colonnade on a stepped platform, the great gate of a sanctum long
- * gone, a bronze whale on the altar inside a ring of rune stones, and two stone guardians at the steps.
- * When Mara's light returns, the runes, the guardians and the altar wake.
+ * V. The Drowned Temple, made only of scanned pieces: an avenue of broken columns on the seabed leads
+ * past two stone guardians to a great gate; through it, the altar (a bronze whale on a boulder) inside
+ * an arc of rune stones. When Mara's light returns, runes, guardians and altar wake.
+ *
+ * Layout in temple space: the gate at the origin, the avenue towards +Z (where the diver comes from).
  */
 export default class TempleScene extends DiveScene {
-	private static readonly TOP = 3;
 	private static readonly COLUMN_HEIGHT = 11;
+	private static readonly AVENUE = { halfWidth: 7, from: 14, step: 5, count: 6 } as const;
+	private static readonly GUARDIANS = { x: 13.5, z: 50 } as const;
+	private static readonly ALTAR_Z = -9;
 
 	public readonly origin: Vector3;
 	public readonly altar: Vector3;
@@ -53,29 +52,22 @@ export default class TempleScene extends DiveScene {
 	constructor(context: ISceneContext) {
 		super(SCENES[SceneId.TEMPLE], context, 71);
 
-		this.origin = this.ground(this.centre.x, this.centre.z, -0.5);
-		this.altar = this.toWorld(0, TempleScene.TOP + 1.4, -12);
-		this.keepClear.push({ centre: this.origin, radius: 30 });
+		this.origin = this.ground(this.centre.x, this.centre.z);
+		// Keep the avenue and the sanctum free of scattered rocks
+		[-12, 0, 15, 30, 45].forEach((z) => this.keepClear.push({ centre: this.at(0, z), radius: 18 }));
 
-		const top = TempleScene.TOP;
-
-		this.add(
-			this.sandstone([
-				// Stepped platform and the altar block
-				[0, 0.75, 0, 40, 1.5, 56],
-				[0, 2.25, 0, 34, 1.5, 50],
-				[0, top + 0.7, -12, 2.6, 1.4, 1.8]
-			])
-		);
-
-		this.buildColonnade();
 		this.buildSanctum();
-		this.buildGuardian(-13.5);
-		this.buildGuardian(13.5);
-		this.buildStatuary();
+		this.buildAvenue();
+		this.buildGuardian(-1);
+		this.buildGuardian(1);
+		this.buildRuins();
+
+		const altarBase = this.floorUnder(this.origin.x, this.origin.z + TempleScene.ALTAR_Z, 1.2);
+		this.altar = this.at(0, TempleScene.ALTAR_Z).setY(altarBase + 1.7);
+		this.buildAltar();
 
 		this.own(new JellyfishBloom(context.water, this.halo(18), '#5ff7ea', 72));
-		this.instancedModel('rock_moss_set_01', this.placements(this.scatter(14, 100), 2, 4), {
+		this.instancedModel('rock_moss_set_01', this.placements(this.scatter(16, 100), 2, 4), {
 			sink: 0.3,
 			isObstacle: true
 		});
@@ -83,17 +75,23 @@ export default class TempleScene extends DiveScene {
 			sink: 0.3,
 			isObstacle: true
 		});
-		this.lanternfish(this.toWorld(-18, 14, 10), 120, '#5ef2e0', 701);
-		this.lanternfish(this.toWorld(16, 18, -20), 100, '#7fd8ff', 702);
-		this.predators(this.toWorld(0, 20, 0), 2, 36, 703);
+		this.lanternfish(this.at(-18, 20).setY(this.origin.y + 12), 120, '#5ef2e0', 701);
+		this.lanternfish(this.at(16, -10).setY(this.origin.y + 16), 100, '#7fd8ff', 702);
+		this.predators(this.origin.clone().setY(this.origin.y + 18), 2, 40, 703);
 	}
 
-	/** Through the gate, looking at the altar. */
+	/** In front of the gate, looking through it at the altar. */
 	public get threshold(): Vector3 {
-		return this.toWorld(0, TempleScene.TOP + 2.6, 4);
+		return this.at(0, 7).setY(this.origin.y + 3.4);
 	}
 
-	/** Mara's light settles on the altar and the temple wakes. */
+	/** A point on the avenue, for camera shots: `height` metres above the seabed there. */
+	public above(x: number, z: number, height: number): Vector3 {
+		const point = this.at(x, z);
+
+		return point.setY(this.context.terrain.heightAt(point.x, point.z) + height);
+	}
+
 	public wake(): void {
 		this._wakeTarget = 1;
 	}
@@ -112,7 +110,9 @@ export default class TempleScene extends DiveScene {
 		this._runes.color.setRGB(0.37, 0.95, 0.88).multiplyScalar(runes * 4 * pulse);
 		this._runes.opacity = runes;
 		this._socket.color.setRGB(0.56, 0.99, 1).multiplyScalar(0.5 + this._wake * (4 + Math.sin(frame.elapsed * 3)));
-		this._glowing.forEach((material) => (material.emissiveIntensity = this._wake * material.userData['glow'] * pulse));
+		this._glowing.forEach(
+			(material) => (material.emissiveIntensity = this._wake * (material.userData['glow'] as number) * pulse)
+		);
 	}
 
 	public override dispose(): void {
@@ -120,90 +120,43 @@ export default class TempleScene extends DiveScene {
 		this._owned.forEach((item) => item.dispose());
 	}
 
-	private toWorld(x: number, y: number, z: number): Vector3 {
-		return new Vector3(x, y, z).add(this.origin);
+	/** Temple space → world (y on the seabed's general level; models ground themselves). */
+	private at(x: number, z: number): Vector3 {
+		return new Vector3(this.origin.x + x, this.origin.y, this.origin.z + z);
 	}
 
-	/** Sandstone boxes merged into one mesh, textured along the world axes. */
-	private sandstone(blocks: readonly Block[]): Mesh {
-		const matrix = new Matrix4();
-		const parts = blocks.map(([x, y, z, width, height, depth]) =>
-			new BoxGeometry(width, height, depth).applyMatrix4(matrix.makeTranslation(x, y, z))
-		);
-		const geometry = mergeGeometries(parts) ?? new BoxGeometry();
-		parts.forEach((part) => part.dispose());
-
-		const material = patchMaterial(
-			new MeshStandardMaterial({ color: '#757062', roughness: 0.95 }),
-			this.context.water.caustics,
-			triplanar(this.context.assets.texture('large_sandstone_blocks_01', 'diffuse'), 0.22)
-		);
-		this._owned.push(geometry, material);
-
-		const mesh = new Mesh(geometry, material);
-		mesh.position.copy(this.origin);
-
-		return mesh;
-	}
-
-	/** Scanned ruined columns in two rows; some stand to full height, some are stumps, three have fallen. */
-	private buildColonnade(): void {
-		const standing: IPropPlacement[] = [];
-		const top = TempleScene.TOP;
-
-		[-9, 9].forEach((x) => {
-			for (let i = 0; i < 9; i++) {
-				const z = -18 + i * 4.5;
-				const isStump = (i === 2 && x < 0) || (i === 5 && x > 0) || (i === 1 && x > 0) || (i === 7 && x < 0);
-
-				standing.push({
-					position: this.toWorld(x, top, z),
-					scale: isStump ? this.random.range(0.35, 0.6) : this.random.range(0.92, 1.05),
-					rotation: new Euler(0, this.random.range(0, Math.PI * 2), 0)
-				});
-			}
-		});
-
-		const stone = {
-			color: '#d8d1bf',
+	private stone(): { color: string; patches: ReturnType<typeof triplanar>[] } {
+		return {
+			color: '#a8a291',
 			patches: [triplanar(this.context.assets.texture('large_sandstone_blocks_01', 'diffuse'), 0.35)]
 		};
-
-		this.instancedModel('old_ruined_column', standing, {
-			size: TempleScene.COLUMN_HEIGHT,
-			sink: 0.02,
-			isObstacle: true,
-			material: stone
-		});
-		this.instancedModel(
-			'old_ruined_column',
-			[
-				{ position: this.toWorld(13, top, -6), scale: 0.9, rotation: new Euler(Math.PI / 2, 0, -0.4, 'YXZ') },
-				{ position: this.toWorld(-12.5, top, 4), scale: 0.85, rotation: new Euler(Math.PI / 2, 0, 0.6, 'YXZ') },
-				{
-					position: this.ground(this.origin.x + 24, this.origin.z + 12),
-					scale: 1,
-					rotation: new Euler(Math.PI / 2, 1.2, 0, 'YXZ')
-				}
-			],
-			{ size: TempleScene.COLUMN_HEIGHT, sink: 0.15, isLying: true, material: stone }
-		);
 	}
 
-	/** The great gate where the sanctum stood, the altar behind it, rune stones in an arc around the altar. */
+	/** The great gate, standing on its own rock. */
 	private buildSanctum(): void {
-		const top = TempleScene.TOP;
+		this.placeModel('half_temple_of_apollon_portara', this.at(0, 0), 15, new Euler(0, 0, 0), { sink: 0.12 });
+	}
 
-		// The scan stands on its own rock islet: sink that under the platform so only the gate rises from it
-		this.placeModel('half_temple_of_apollon_portara', this.toWorld(0, top - 3.2, -6), 19, new Euler(0, 0, 0));
-		this.placeModel('bronze_whale_statue', this.altar, 1.4, new Euler(0, Math.PI / 2, 0));
+	/** The altar inside the gate: a boulder with the bronze whale, rune stones in an arc behind. */
+	private buildAltar(): void {
+		this.instancedModel('boulder_01', [{ position: this.at(0, TempleScene.ALTAR_Z), scale: 1 }], {
+			size: 2.4,
+			sink: 0.3
+		});
+		this.placeModel(
+			'bronze_whale_statue',
+			this.altar.clone().setY(this.altar.y - 0.15),
+			1.4,
+			new Euler(0, Math.PI / 2, 0),
+			{ isAboveGround: true }
+		);
 
-		const runeStones = [-0.75, 0, 0.75].map((angle) => ({
-			position: this.toWorld(Math.sin(angle) * 5.5, top, -12 - Math.cos(angle) * 5.5),
+		const runeStones = [-0.8, -0.27, 0.27, 0.8].map((angle) => ({
+			position: this.at(Math.sin(angle) * 6, TempleScene.ALTAR_Z - Math.cos(angle) * 6),
 			scale: 1,
 			rotation: new Euler(0, angle, 0)
 		}));
-		const stones = this.instancedModel('elder_stones', runeStones, { size: 4.5, sink: 0.05, material: {} });
+		const stones = this.runeStones(runeStones, 3.6);
 		stones.forEach((material) => {
 			material.emissiveIntensity = 0;
 			material.userData['glow'] = 2.5;
@@ -213,14 +166,52 @@ export default class TempleScene extends DiveScene {
 		const socket = new SphereGeometry(0.22, 16, 12);
 		this._owned.push(socket);
 		const socketMesh = new Mesh(socket, this._socket);
-		socketMesh.position.copy(this.altar).setY(this.altar.y + 1.3);
+		socketMesh.position.copy(this.altar).setY(this.altar.y + 1.2);
 		this.add(socketMesh);
 	}
 
-	/** A towering statue at the steps, with a ring of runes at its feet that lights up when it wakes. */
-	private buildGuardian(x: number): void {
-		const base = this.toWorld(x, TempleScene.TOP, 22);
-		const guardian = this.placeModel('gothic_statue', base, 11, new Euler(0, x < 0 ? 0.25 : -0.25, 0));
+	/** Two rows of ruined columns along the approach; some full height, some stumps, three fallen. */
+	private buildAvenue(): void {
+		const { halfWidth, from, step, count } = TempleScene.AVENUE;
+		const standing: IPropPlacement[] = [];
+
+		[-1, 1].forEach((side) => {
+			for (let i = 0; i < count; i++) {
+				const isStump = (side < 0 && (i === 1 || i === 4)) || (side > 0 && i === 2);
+
+				standing.push({
+					position: this.at(side * halfWidth, from + i * step),
+					scale: isStump ? this.random.range(0.35, 0.55) : this.random.range(0.92, 1.05),
+					rotation: new Euler(0, this.random.range(0, Math.PI * 2), 0)
+				});
+			}
+		});
+
+		this.instancedModel('old_ruined_column', standing, {
+			size: TempleScene.COLUMN_HEIGHT,
+			sink: 0.04,
+			isObstacle: true,
+			material: this.stone()
+		});
+		this.instancedModel(
+			'old_ruined_column',
+			[
+				{ position: this.at(-12, 22), scale: 0.9, rotation: new Euler(Math.PI / 2, -0.3, 0, 'YXZ') },
+				{ position: this.at(12.5, 32), scale: 0.85, rotation: new Euler(Math.PI / 2, 0.5, 0, 'YXZ') },
+				{ position: this.at(-14, 4), scale: 1, rotation: new Euler(Math.PI / 2, 1.3, 0, 'YXZ') }
+			],
+			{ size: TempleScene.COLUMN_HEIGHT, sink: 0.15, isLying: true, material: this.stone() }
+		);
+	}
+
+	/** A stone guardian at the avenue's mouth, facing the diver; runes ring its feet. */
+	private buildGuardian(side: -1 | 1): void {
+		const { x, z } = TempleScene.GUARDIANS;
+		const position = this.at(side * x, z);
+		// The statue model faces -Z: turn it round to face the diver coming down the avenue
+		const guardian = this.placeModel('gothic_statue', position, 11, new Euler(0, Math.PI - side * 0.3, 0), {
+			sink: 0.03
+		});
 
 		guardian.traverse((child: Object3D) => {
 			if (child instanceof Mesh) {
@@ -238,34 +229,41 @@ export default class TempleScene extends DiveScene {
 		const ring = new RingGeometry(2.6, 3.1, 48).rotateX(-Math.PI / 2);
 		this._owned.push(ring);
 		const runes = new Mesh(ring, this._runes);
-		runes.position.copy(base).setY(base.y + 0.05);
+		runes.position.copy(position).setY(this.context.terrain.heightAt(position.x, position.z) + 0.08);
 		this.add(runes);
 	}
 
-	/** Lions at the steps, a horse and busts toppled into the sand. */
-	private buildStatuary(): void {
-		const top = TempleScene.TOP;
+	/** Lions guarding the entrance, a horse and busts toppled in the sand, coral growing over it all. */
+	private buildRuins(): void {
+		this.placeModel('lion_head', this.at(-5, 54), 1.7, new Euler(0, 0.25, 0));
+		this.placeModel('lion_head', this.at(5, 54), 1.7, new Euler(0, -0.25, 0));
+		this.placeModel('horse_statue_01', this.at(17, 10), 4.5, new Euler(0, 0.8, 1.35), { sink: 0.25 });
+		this.placeModel('marble_bust_01', this.at(-16, 34), 1.6, new Euler(0.4, 2.2, 0.9), { sink: 0.2 });
+		this.placeModel('marble_bust_01', this.at(10, 58), 1.3, new Euler(0, -0.6, 1.4), { sink: 0.2 });
 
-		this.placeModel('lion_head', this.toWorld(-17, top, 26), 1.8, new Euler(0, 0.2, 0));
-		this.placeModel('lion_head', this.toWorld(17, top, 26), 1.8, new Euler(0, -0.2, 0));
-		this.placeModel(
-			'horse_statue_01',
-			this.ground(this.origin.x + 26, this.origin.z + 18, -0.3),
-			4.5,
-			new Euler(0, 0.8, 1.35)
+		const growth = (count: number, spread: number): IPropPlacement[] =>
+			[...Array(count).keys()].map(() => ({
+				position: this.at(this.random.range(-spread, spread), this.random.range(-14, 58)),
+				scale: this.random.range(0.6, 1.1),
+				rotation: new Euler(0, this.random.range(0, Math.PI * 2), 0),
+				color: ['#7f8c88', '#8f8476', '#6f7f86'][Math.floor(this.random.range(0, 3))] ?? '#7f8c88'
+			}));
+
+		this.instancedModel(
+			'acropora_cervicornis_detail_view',
+			growth(12, 20).filter((placement) => Math.abs(placement.position.x - this.origin.x) > 9),
+			{ size: 1.4, sink: 0.08 }
 		);
-		this.placeModel(
-			'marble_bust_01',
-			this.ground(this.origin.x - 22, this.origin.z + 30, -0.2),
-			1.6,
-			new Euler(0.4, 2.2, 0.9)
+		this.instancedModel(
+			'blue_sea_anemone_l',
+			growth(5, 18).filter((placement) => Math.abs(placement.position.x - this.origin.x) > 9),
+			{ size: 0.9, sink: 0.2 }
 		);
-		this.placeModel('marble_bust_01', this.toWorld(6.5, top, 26), 1.3, new Euler(0, -0.6, 1.4));
 	}
 
 	private halo(count: number): Vector3[] {
 		return [...Array(count).keys()].map(() =>
-			this.toWorld(this.random.range(-35, 35), this.random.range(10, 26), this.random.range(-40, 40))
+			this.at(this.random.range(-35, 35), this.random.range(-20, 60)).setY(this.origin.y + this.random.range(10, 26))
 		);
 	}
 }

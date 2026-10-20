@@ -139,7 +139,6 @@ export default class JourneyScript {
 		const ledge = passage.ledge;
 		const route = passage.route;
 		const altar = temple.altar;
-		const shrine = temple.origin;
 		const heart = atlantis.heart;
 		const plaza = atlantis.plaza;
 		const whaleCircle = new Vector3(canyonCentre(-490), -58, -490);
@@ -171,20 +170,20 @@ export default class JourneyScript {
 			this.shot(0.57, routePoint(1).add(new Vector3(5, 7, 16)), routePoint(2)),
 			this.shot(0.61, routePoint(3).add(new Vector3(-5, 7, 16)), routePoint(4)),
 			this.shot(0.65, routePoint(5).add(new Vector3(4, 8, 18)), routePoint(6).add(new Vector3(0, -6, -20))),
-			// V. Down onto the temple, to the altar
-			this.shot(0.69, shrine.clone().add(new Vector3(0, 17, 52)), shrine.clone().add(new Vector3(0, 6, 0))),
-			this.shot(0.72, shrine.clone().add(new Vector3(22, 10, 42)), shrine.clone().add(new Vector3(13.5, 9, 22))),
-			this.shot(0.75, shrine.clone().add(new Vector3(0, 7, 32)), shrine.clone().add(new Vector3(0, 6, -2))),
+			// V. Down onto the temple, past the guardians, along the avenue, through the gate to the altar
+			this.shot(0.69, temple.above(0, 72, 16), temple.above(0, 20, 4)),
+			this.shot(0.72, temple.above(19, 44, 7), temple.above(13.5, 50, 7)),
+			this.shot(0.75, temple.above(0, 36, 4.5), temple.above(0, 0, 4)),
 			this.shot(0.78, temple.threshold, altar.clone().add(new Vector3(0, 0.8, 0))),
-			this.shot(0.8, shrine.clone().add(new Vector3(0, 18, -6)), shrine.clone().add(new Vector3(0, 6, -40))),
-			this.shot(0.82, shrine.clone().add(new Vector3(0, 14, -60)), atlantis.plaza.clone().add(new Vector3(0, 10, 0))),
+			this.shot(0.8, temple.above(0, -6, 14), temple.above(0, -45, 5)),
+			this.shot(0.82, temple.above(0, -60, 14), atlantis.plaza.clone().add(new Vector3(0, 10, 0))),
 			// VI. Atlantis: high over the city, down the avenue through the gate, to the heart, then up the pillar of light
 			this.shot(0.85, plaza.clone().add(new Vector3(0, 24, 78)), heart),
-			this.shot(0.885, plaza.clone().add(new Vector3(0, 7, 60)), heart),
-			this.shot(0.91, plaza.clone().add(new Vector3(0, 4, 34)), heart),
+			this.shot(0.885, plaza.clone().add(new Vector3(0, 16, 64)), heart),
+			this.shot(0.91, plaza.clone().add(new Vector3(0, 6, 28)), heart),
 			this.shot(0.93, heart.clone().add(new Vector3(0, -2, 14)), heart),
-			this.shot(0.96, heart.clone().add(new Vector3(-22, 4, 26)), heart.clone().add(new Vector3(0, 6, 0))),
-			this.shot(0.985, heart.clone().add(new Vector3(-12, 45, 22)), heart.clone().add(new Vector3(0, 90, -10))),
+			this.shot(0.96, heart.clone().add(new Vector3(0, 4, 30)), heart.clone().add(new Vector3(0, 5, 0))),
+			this.shot(0.985, heart.clone().add(new Vector3(0, 45, 22)), heart.clone().add(new Vector3(0, 90, -10))),
 			this.shot(
 				1,
 				new Vector3(heart.x - 6, SURFACE_Y - 12, heart.z + 14),
