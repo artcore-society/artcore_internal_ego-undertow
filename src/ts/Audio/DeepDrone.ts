@@ -3,7 +3,7 @@ import AmbientLayer from './AmbientLayer.ts';
 /** A low, beating hum that grows with depth: the abyss has a voice. */
 export default class DeepDrone extends AmbientLayer {
 	protected get maxGain(): number {
-		return 0.32;
+		return 0.2;
 	}
 
 	protected build(context: AudioContext, output: AudioNode): void {
