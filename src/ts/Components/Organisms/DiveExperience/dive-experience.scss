@@ -4,6 +4,15 @@
     inset: 0;
     user-select: none;
 
+    // Look-around while the dive pauses: an open hand, closed while dragging
+    &[data-look] {
+      cursor: grab;
+    }
+
+    &[data-grabbing] {
+      cursor: grabbing;
+    }
+
     &__canvas {
       display: block;
       inline-size: 100%;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useExperience } from '../../../Composables/useExperience.ts';
 import { GamePhase } from '../../../Enums/GamePhase.ts';
 import LoadingScreen from '../LoadingScreen/LoadingScreen.vue';
@@ -20,6 +20,7 @@ const {
 	caption,
 	stop,
 	telemetry,
+	hotspot,
 	isHelpOpen,
 	begin,
 	restart,
@@ -27,10 +28,23 @@ const {
 	toggleMute,
 	toggleHelp
 } = useExperience(canvas);
+
+/** While the dive pauses the view can be dragged around: show a hand, closed while dragging. */
+const canLook = computed(() => stop.value !== null);
+const isGrabbing = ref(false);
 </script>
 
 <template>
-	<div class="dive-experience" :data-cinematic="stop !== null || phase === GamePhase.FINISHED || undefined">
+	<div
+		class="dive-experience"
+		:data-cinematic="stop !== null || phase === GamePhase.FINISHED || undefined"
+		:data-look="canLook || undefined"
+		:data-grabbing="(canLook && isGrabbing) || undefined"
+		@pointerdown="isGrabbing = true"
+		@pointerup="isGrabbing = false"
+		@pointercancel="isGrabbing = false"
+		@pointerleave="isGrabbing = false"
+	>
 		<canvas ref="canvas" class="dive-experience__canvas" />
 
 		<Transition name="fade">
@@ -48,6 +62,7 @@ const {
 				:chapter="chapter"
 				:caption="caption"
 				:stop="stop"
+				:hotspot="hotspot"
 				:lights="lights"
 				@activate="activateStop"
 			/>

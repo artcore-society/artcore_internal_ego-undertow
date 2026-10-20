@@ -1,21 +1,15 @@
 @layer molecules {
   .hotspot-prompt {
     position: absolute;
-    inset-inline-start: var(--hotspot-x, 50%);
-    inset-block-start: var(--hotspot-y, 62%);
-    display: grid;
-    justify-items: center;
-    gap: var(--space-12);
+    // Positioned by left/top every frame: no transition, so it never lags or swims
     translate: -50% -20px;
-    transition:
-      inset-inline-start 120ms linear,
-      inset-block-start 120ms linear;
 
     &__button {
       display: grid;
       justify-items: center;
       gap: var(--space-12);
       pointer-events: auto;
+      cursor: pointer;
 
       &:hover .pulse__core {
         background: var(--color-accent);
@@ -32,6 +26,36 @@
       border: var(--border-s) solid var(--color-border-strong);
       background: color-mix(in oklab, var(--color-abyss) 35%, transparent);
       backdrop-filter: blur(8px);
+    }
+
+    &[data-off-screen] {
+      translate: -50% -50%;
+    }
+
+    &__pointer {
+      display: grid;
+      justify-items: center;
+      gap: var(--space-8);
+    }
+
+    &__arrow {
+      inline-size: 0;
+      block-size: 0;
+      border-inline: 10px solid transparent;
+      border-block-end: 18px solid var(--color-accent);
+      rotate: var(--hotspot-angle);
+      filter: drop-shadow(0 0 10px var(--color-accent));
+      animation: hotspot-nudge 1.2s var(--transition-easing-in-out) infinite;
+    }
+
+    &__hint {
+      color: var(--color-accent);
+    }
+  }
+
+  @keyframes hotspot-nudge {
+    50% {
+      opacity: 0.55;
     }
   }
 }

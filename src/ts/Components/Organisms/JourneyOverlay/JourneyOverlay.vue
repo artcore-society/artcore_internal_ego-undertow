@@ -9,13 +9,20 @@ import ProgressRail from '../../Molecules/ProgressRail/ProgressRail.vue';
 import HotspotPrompt from '../../Molecules/HotspotPrompt/HotspotPrompt.vue';
 import ScrollHint from '../../Molecules/ScrollHint/ScrollHint.vue';
 import Text from '../../Atoms/Text/Text.vue';
-import type { IChapterView, ICaptionView, IStopView, ITelemetry } from '../../../Enums/ExperienceEvent.ts';
+import type {
+	IChapterView,
+	ICaptionView,
+	IHotspotView,
+	IStopView,
+	ITelemetry
+} from '../../../Enums/ExperienceEvent.ts';
 
 const props = defineProps<{
 	telemetry: Readonly<ITelemetry>;
 	chapter: Readonly<IChapterView> | null;
 	caption: Readonly<ICaptionView> | null;
 	stop: Readonly<IStopView> | null;
+	hotspot: Readonly<IHotspotView> | null;
 	lights: number;
 }>();
 
@@ -56,13 +63,7 @@ const showScrollHint = computed(() => !props.stop && !props.caption && props.tel
 		</div>
 
 		<Transition name="fade">
-			<HotspotPrompt
-				v-if="stop"
-				:key="stop.id"
-				:label="stop.label"
-				:hotspot="telemetry.hotspot"
-				@activate="$emit('activate')"
-			/>
+			<HotspotPrompt v-if="stop" :key="stop.id" :label="stop.label" :hotspot="hotspot" @activate="$emit('activate')" />
 		</Transition>
 
 		<DepthGauge
