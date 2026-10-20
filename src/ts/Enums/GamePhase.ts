@@ -1,6 +1,7 @@
 export const GamePhase = {
+	LOADING: 'loading',
 	INTRO: 'intro',
-	PLAYING: 'playing',
+	JOURNEY: 'journey',
 	FINISHED: 'finished'
 } as const;
 

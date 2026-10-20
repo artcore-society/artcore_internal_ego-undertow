@@ -3,37 +3,47 @@ import ExperienceRenderer from './ExperienceRenderer.ts';
 import Ticker from './Ticker.ts';
 import Viewport from './Viewport.ts';
 import AdaptiveQuality from './AdaptiveQuality.ts';
+import AssetLibrary from '../Assets/AssetLibrary.ts';
 import World from '../World/World.ts';
-import DiverController from '../World/Diver/DiverController.ts';
-import FollowCamera, { CameraMode } from '../Camera/FollowCamera.ts';
+import LightProbe from '../World/Lighting/LightProbe.ts';
+import RailCamera from '../Camera/RailCamera.ts';
 import PointerOrbit from '../Camera/PointerOrbit.ts';
+import HeadLamp from '../Camera/HeadLamp.ts';
 import PostProcessing from '../PostProcessing/PostProcessing.ts';
 import SoundDirector from '../Audio/SoundDirector.ts';
 import EnvironmentDirector from '../Environment/EnvironmentDirector.ts';
-import OxygenTank from '../Dive/OxygenTank.ts';
-import Checkpoint from '../Dive/Checkpoint.ts';
-import BlackoutSequence from '../Dive/BlackoutSequence.ts';
-import DiveSession from '../Dive/DiveSession.ts';
-import Narrator from '../Story/Narrator.ts';
-import StoryDirector from '../Story/StoryDirector.ts';
-import StoryScript from '../Story/StoryScript.ts';
+import Storm from '../Environment/Storm.ts';
+import JourneyDirector from '../Journey/JourneyDirector.ts';
+import JourneyScript, { type IJourneyActions } from '../Journey/JourneyScript.ts';
 import EventBus from '../Services/EventBus.ts';
-import InputService from '../Services/InputService.ts';
-import { DIVER_START } from '../Config/world.ts';
-import { GameMode } from '../Enums/GameMode.ts';
+import ScrollInput from '../Services/ScrollInput.ts';
+import { installUnderwaterFog } from '../Helpers/underwaterFog.ts';
+import { damp } from '../Helpers/math.ts';
+import { NARRATION } from '../Journey/narration.ts';
+import { SURFACE_Y } from '../Config/world.ts';
 import { GamePhase } from '../Enums/GamePhase.ts';
-import { InputAction } from '../Enums/InputAction.ts';
-import type { ExperienceEventMap, ISignalBearing } from '../Enums/ExperienceEvent.ts';
-import type IStoryContext from '../Story/IStoryContext.ts';
+import type { ExperienceEventMap, IHotspotView, ISignalView } from '../Enums/ExperienceEvent.ts';
+import type { ICaption } from '../Journey/IJourney.ts';
+import type { ITrailSpot } from '../World/Effects/LightTrail.ts';
 import type IDisposable from '../Contracts/IDisposable.ts';
 import type IFrameContext from '../Contracts/IFrameContext.ts';
 
 /**
- * Composition root: wires every subsystem together and runs the frame loop.
+ * Composition root: loads the assets, builds the world from them, and runs the journey loop.
  * The Vue layer only talks to this facade and its typed event bus.
  */
 export default class Experience implements IDisposable {
-	private static readonly TELEMETRY_INTERVAL = 0.1;
+	private static readonly TELEMETRY_INTERVAL = 1 / 30;
+	private static readonly BREATH_SECONDS = 5.5;
+	/** Mara's "follow the light, little fish": her trail appears from here. */
+	private static readonly TRAIL_FROM = 0.18;
+	/** Metres kept clear of rocks and coral around the camera's path. */
+	private static readonly PATH_CLEARANCE = 2.2;
+	/** Scrolling slows to this while someone is speaking, so nobody gets talked over. */
+	private static readonly LISTENING_PACE = 0.4;
+	/** Once followed, the whale leads this far ahead of the camera until the temple comes into sight. */
+	private static readonly WHALE_LEAD = 14;
+	private static readonly WHALE_RELEASE = 0.665;
 
 	public readonly events = new EventBus<ExperienceEventMap>();
 
@@ -41,284 +51,369 @@ export default class Experience implements IDisposable {
 	private readonly _renderer: ExperienceRenderer;
 	private readonly _ticker = new Ticker();
 	private readonly _quality: AdaptiveQuality;
-	private readonly _input: InputService;
+	private readonly _assets: AssetLibrary;
+	private readonly _scroll: ScrollInput;
 	private readonly _orbit: PointerOrbit;
-	private readonly _controller: DiverController;
-	private readonly _world: World;
-	private readonly _camera: FollowCamera;
-	private readonly _post: PostProcessing;
+	private readonly _lamp = new HeadLamp();
 	private readonly _sound = new SoundDirector();
 	private readonly _environment = new EnvironmentDirector();
-	private readonly _oxygen = new OxygenTank();
-	private readonly _checkpoint = new Checkpoint();
-	private readonly _blackout: BlackoutSequence;
-	private readonly _session: DiveSession;
-	private readonly _narrator = new Narrator();
-	private readonly _story: StoryDirector;
-	private readonly _signal = new Vector3();
+	private readonly _storm = new Storm();
 	private readonly _projected = new Vector3();
+	private readonly _forward = new Vector3();
+	private readonly _local = new Vector3();
 	private readonly _unsubscribers: (() => void)[] = [];
-	private _hasSignal = false;
+	private _world: World | null = null;
+	private _probe: LightProbe | null = null;
+	private _camera: RailCamera | null = null;
+	private _post: PostProcessing | null = null;
+	private _journey: JourneyDirector | null = null;
+	private _phase: GamePhase = GamePhase.LOADING;
+	private _isWhaleLeading = false;
+	private _lastProgress = 0;
+	private _fade = 0;
+	private _calm = 0;
+	private _breath = 0;
 	private _telemetryTimer = 0;
 
 	constructor(canvas: HTMLCanvasElement) {
 		const container = canvas.parentElement ?? document.body;
 
+		installUnderwaterFog();
+
 		this._viewport = new Viewport(container);
 		this._renderer = new ExperienceRenderer(canvas);
 		this._quality = new AdaptiveQuality(this._viewport);
-		this._input = new InputService(container);
+		this._assets = new AssetLibrary(this._renderer);
+		this._scroll = new ScrollInput(container);
 		this._orbit = new PointerOrbit(container);
-		this._controller = new DiverController(this._input);
-		this._world = new World(this._controller);
-		this._camera = new FollowCamera(this._world.seabed, this._orbit);
-		this._post = new PostProcessing(this._renderer, this._world.scene, this._camera);
-		this._session = new DiveSession(this.events);
-		this._blackout = new BlackoutSequence({
-			fade: (level) => (this._post.fade = level),
-			teleport: (checkpoint) => {
-				this._world.diver.teleport(checkpoint.position.x, checkpoint.position.y, checkpoint.position.z, checkpoint.yaw);
-				this._camera.snapBehind(this._world.diver);
-				this._oxygen.refill();
-			},
-			setControl: (enabled) => (this._controller.enabled = enabled)
+
+		this._unsubscribers.push(
+			this._scroll.onShortcut('m', () => this.toggleMute()),
+			this._scroll.onShortcut('h', () => this.events.emit('help', undefined))
+		);
+		this._storm.onStrike((strike) => {
+			this._sound.effects.thunder(strike.distance);
+
+			const camera = this._camera;
+
+			if (camera) {
+				this._world?.surface.strike(strike, camera.position);
+			}
 		});
-		this._story = new StoryDirector(new StoryScript(this._world).chapters(), this.createStoryContext(), {
-			chapterStarted: (card) => this.events.emit('chapter', card),
-			objectiveChanged: (objective) => this.events.emit('objective', objective),
-			completed: () => this._session.finish()
-		});
-
-		this._viewport.subscribe(this._renderer);
-		this._viewport.subscribe(this._camera);
-		this._viewport.subscribe(this._post);
-		this._viewport.subscribe(this._world);
-
-		this._environment.subscribe(...this._world.environmentTargets, this._post);
-
-		this.placeAtStart();
-		this._environment.update(this._world.diver.depth, 0, 10);
-		this.bindInput();
-		this.bindGameplay();
-		this._ticker.add(this.update);
 	}
 
 	public get isMuted(): boolean {
 		return this._sound.isMuted;
 	}
 
-	/** Compiles shaders up front so the first frames don't stutter, then starts rendering. */
+	/** Loads every asset (with progress), builds the world, compiles shaders, then starts rendering. */
 	public async boot(): Promise<void> {
-		await this._renderer.compileAsync(this._world.scene, this._camera);
+		await this._assets.load((progress) => this.events.emit('loading', progress));
+
+		const probe = new LightProbe(this._renderer);
+		const world = new World(this._assets, probe.texture);
+		const camera = new RailCamera(world.seabed, this._orbit);
+		const journey = new JourneyDirector(new JourneyScript(world, this.createActions()).build(), {
+			chapterChanged: (chapter) => this.events.emit('chapter', chapter),
+			captionChanged: (caption) => this.onCaption(caption),
+			stopChanged: (stop) => {
+				world.beacon.setTarget(stop ? stop.hotspot() : null);
+				this.events.emit('stop', stop ? { id: stop.id, label: stop.label } : null);
+			},
+			finished: () => this.setPhase(GamePhase.FINISHED)
+		});
+
+		NARRATION.forEach((line) => {
+			const voice = this._assets.voice(line.id);
+
+			if (voice) {
+				this._sound.voices.register(line.id, voice);
+			}
+		});
+
+		camera.add(this._lamp);
+		world.scene.add(camera);
+		world.clearPath(this.pathPoints(journey), Experience.PATH_CLEARANCE);
+		world.layTrail(this.trailSpots(journey)).onGather((count) => {
+			this._sound.effects.chime(count);
+			this.events.emit('gathered', count);
+		});
+
+		this._probe = probe;
+		this._world = world;
+		this._camera = camera;
+		this._journey = journey;
+		this._post = new PostProcessing(this._renderer, world.scene, camera);
+
+		this._viewport.subscribe(this._renderer);
+		this._viewport.subscribe(camera);
+		this._viewport.subscribe(this._post);
+		this._viewport.subscribe(world);
+		this._environment.subscribe(...world.environmentTargets, this._post);
+
+		// Settle the first frame, then compile every shader before showing anything
+		camera.follow(journey.sample, { delta: 0, elapsed: 0 });
+		world.syncToCamera(camera, { delta: 0, elapsed: 0 });
+		this._environment.update(SURFACE_Y - camera.position.y, 0, 10);
+		await this._renderer.compileAsync(world.scene, camera);
+
+		this._ticker.add(this.update);
 		this._ticker.start();
+		this.setPhase(GamePhase.INTRO);
 		this.events.emit('ready', undefined);
 	}
 
-	/** Called from a user gesture: unlocks audio and starts the dive from the reef. */
-	public async begin(mode: GameMode): Promise<void> {
+	/** Called from a user gesture: unlocks audio and starts the descent. */
+	public async begin(): Promise<void> {
 		await this._sound.start();
-
-		this._story.stop();
-		this._narrator.clear();
-		this._blackout.cancel();
-		this._world.shards.reset();
-		this._world.temple.reset();
-		this._world.atlantis.reset();
-		this._world.passage.whale.guide(false);
-		this._environment.setIlluminated(false, true);
-		this.setSignal(null);
-
-		this.placeAtStart();
-		this._checkpoint.set(this._world.diver.position, 0);
-		this._camera.mode = CameraMode.FOLLOW;
-		this._camera.snapBehind(this._world.diver);
-		this._oxygen.refill();
-		this._oxygen.isInfinite = mode === GameMode.FREE;
-		this._controller.enabled = true;
-		this._session.start(mode);
-
-		if (mode === GameMode.STORY) {
-			this._story.start();
-		} else {
-			this._world.shards.activateAll();
-		}
+		this.restart();
 	}
 
-	/** After the ending: keep exploring without goals or air limits. */
-	public continueFreely(): void {
-		this._session.continueFreely();
-		this._oxygen.isInfinite = true;
-		this._controller.enabled = true;
-		this._world.shards.activateAll();
-		this._camera.mode = CameraMode.FOLLOW;
+	/** Back to the surface for another dive. */
+	public restart(): void {
+		const world = this._world;
+
+		if (!world || !this._journey) {
+			return;
+		}
+
+		this._journey.restart();
+		this._sound.voices.stop();
+		world.reef.reset();
+		world.temple.reset();
+		world.atlantis.reset();
+		world.passage.whale.setGuide(null);
+		world.trail?.reset();
+		this._environment.setIlluminated(false, true);
+		this._isWhaleLeading = false;
+		this._fade = 0;
+		this._calm = 0;
+		this._storm.calm(false);
+		this._scroll.enabled = true;
+		this.setPhase(GamePhase.JOURNEY);
+		this.events.emit('gathered', 0);
+	}
+
+	/** Uses the hotspot the journey is waiting at. */
+	public activateStop(): void {
+		this._journey?.activate();
 	}
 
 	public toggleMute(): void {
 		this.events.emit('muteChanged', this._sound.toggleMute());
 	}
 
-	public toggleFlashlight(): void {
-		this._world.diver.flashlight.toggle();
-	}
-
-	public skipDialogue(): void {
-		this._narrator.skip();
-	}
-
 	public dispose(): void {
 		this._ticker.dispose();
 		this._unsubscribers.forEach((unsubscribe) => unsubscribe());
-		this._input.dispose();
+		this._scroll.dispose();
 		this._orbit.dispose();
+		this._camera?.release();
+		this._lamp.dispose();
 		this._viewport.dispose();
-		this._world.dispose();
-		this._post.dispose();
+		this._world?.dispose();
+		this._probe?.dispose();
+		this._post?.dispose();
 		this._sound.dispose();
+		this._assets.dispose();
 		this._renderer.dispose();
 		this.events.clear();
 	}
 
-	private placeAtStart(): void {
-		this._world.diver.teleport(DIVER_START.x, DIVER_START.y, DIVER_START.z, 0);
+	private setPhase(phase: GamePhase): void {
+		this._phase = phase;
+		this._scroll.enabled = phase === GamePhase.JOURNEY || phase === GamePhase.FINISHED;
+		this.events.emit('phaseChanged', phase);
 	}
 
-	private createStoryContext(): IStoryContext {
-		const session = (): DiveSession => this._session;
+	private createActions(): IJourneyActions {
+		const world = (): World | null => this._world;
 
 		return {
-			diver: this._world.diver,
-			world: this._world,
-			narrator: this._narrator,
-			get collected(): number {
-				return session().shards;
+			receiveSignal: () => {
+				world()?.reef.receiveSignal();
+				this._sound.effects.discovery();
 			},
-			setSignal: (target) => this.setSignal(target),
-			setCheckpoint: (position, yaw = 0) => this._checkpoint.set(position, yaw),
-			activateShards: (scene) => this._world.shards.activate(scene),
-			showcase: (target, distance) => this._camera.showcase(target, this._world.diver.position, distance),
-			setIlluminated: (enabled) => this._environment.setIlluminated(enabled),
-			cue: (sound) => {
-				if (sound === 'discovery') {
-					this._sound.effects.discovery();
-				} else if (sound === 'rumble') {
-					this._sound.effects.rumble();
-				} else {
-					this._sound.effects.whaleSong();
-				}
+			playLog: () => this._sound.effects.discovery(),
+			followWhale: () => {
+				this._isWhaleLeading = true;
+				this._sound.effects.whaleSong();
 			},
-			shake: (amount) => this._camera.shake(amount)
+			wakeTemple: () => {
+				world()?.temple.wake();
+				this._sound.effects.rumble();
+			},
+			wakeCity: () => {
+				world()?.atlantis.awaken();
+				this._environment.setIlluminated(true);
+				this._sound.effects.discovery();
+				// The storm passes: by the time you surface, it's a calm sunset
+				this._storm.calm();
+			}
 		};
 	}
 
-	private setSignal(target: Vector3 | null): void {
-		this._hasSignal = target !== null;
-
-		if (target) {
-			this._signal.copy(target);
+	private onCaption(caption: ICaption | null): void {
+		if (caption?.id === '05-mara-follow-the-light') {
+			this._world?.trail?.reveal(caption.from);
 		}
 
-		this._world.beacon.setTarget(target);
-	}
-
-	private bindInput(): void {
-		this._unsubscribers.push(
-			this._input.onPress(InputAction.TOGGLE_MUTE, () => this.toggleMute()),
-			this._input.onPress(InputAction.FLASHLIGHT, () => this.toggleFlashlight())
+		this.events.emit(
+			'caption',
+			caption ? { id: caption.id, speaker: caption.speaker ?? null, text: caption.text } : null
 		);
-	}
 
-	private bindGameplay(): void {
-		const diver = this._world.diver;
-
-		diver.onInhale(() => this._session.isPlaying && this._sound.effects.inhale(this._oxygen.isLow ? 1.5 : 1));
-		diver.onExhale((regulator) => {
-			this._world.bubbles.burst(regulator, 7);
-
-			if (this._session.isPlaying) {
-				this._sound.effects.exhale();
-			}
-		});
-
-		this._world.shards.onCollect(() => {
-			this._session.collect();
-			this._sound.effects.chime(this._session.shards);
-			this._camera.shake(0.08);
-		});
-
-		this._narrator.onChange((line) => this.events.emit('dialogue', line));
-		this._narrator.onLine(() => this._sound.effects.radio());
-
-		this._unsubscribers.push(
-			this.events.on('phaseChanged', (phase) => {
-				if (phase === GamePhase.FINISHED) {
-					this.setSignal(null);
-					this._oxygen.isInfinite = true;
-				}
-			})
-		);
-	}
-
-	private readonly update = (frame: IFrameContext): void => {
-		const diver = this._world.diver;
-
-		this._world.simulate(frame, this._environment.darkness);
-		this._camera.follow(diver, frame);
-		this._world.syncToCamera(this._camera, frame);
-		this._environment.update(diver.depth, this._world.shelterAt(diver.position), frame.delta);
-
-		this._narrator.update(frame.delta);
-		this._story.update(frame.delta);
-		this._session.update(diver.depth, frame.delta);
-		this.updateAir(frame.delta);
-		this._blackout.update(frame.delta);
-		this._sound.update(diver.depth, this._session.isPlaying && this._oxygen.isLow, frame.delta);
-		this._quality.update(frame.delta);
-		this.publishTelemetry(frame.delta);
-
-		this._post.render(diver, this._session.isPlaying ? this.hypoxia() : 0, frame);
-	};
-
-	private updateAir(delta: number): void {
-		const diver = this._world.diver;
-
-		if (!this._session.isPlaying || this._blackout.isActive) {
+		if (!caption?.speaker) {
 			return;
 		}
 
-		this._oxygen.update(diver.depth, diver.isSprinting, this._world.hasAirAt(diver.position), delta);
-		diver.breathRate = this._oxygen.isLow ? 1.8 : diver.isSprinting ? 1.5 : 1;
+		if (caption.speaker === 'Kai') {
+			this._sound.effects.radio();
+		}
 
-		if (this._oxygen.isEmpty) {
-			this._session.registerBlackout();
-			this._blackout.start(this._checkpoint);
-			this.events.emit('blackout', 'You blacked out. The current carried you back to safer water.');
+		this._sound.voices.play(caption.id, caption.speaker);
+	}
+
+	/** Mara's trail: small lights along the camera path, from her "follow the light" to the heart. */
+	private trailSpots(journey: JourneyDirector): ITrailSpot[] {
+		const spots: ITrailSpot[] = [];
+
+		for (let progress = Experience.TRAIL_FROM; progress < 0.92; progress += 0.009) {
+			const { position } = journey.rail.sample(progress);
+			spots.push({ position: position.clone().add(new Vector3(Math.sin(progress * 90) * 0.8, -0.5, 0)), progress });
+		}
+
+		return spots;
+	}
+
+	/** Points along the whole camera path, for clearing obstacles off it. */
+	private pathPoints(journey: JourneyDirector): Vector3[] {
+		const points: Vector3[] = [];
+
+		for (let progress = 0; progress <= 1; progress += 0.0015) {
+			points.push(journey.rail.sample(progress).position.clone());
+		}
+
+		return points;
+	}
+
+	private readonly update = (frame: IFrameContext): void => {
+		const world = this._world;
+		const camera = this._camera;
+		const journey = this._journey;
+		const post = this._post;
+
+		if (!world || !camera || !journey || !post) {
+			return;
+		}
+
+		const pace = this._sound.voices.isSpeaking ? Experience.LISTENING_PACE : 1;
+		journey.scroll(this._scroll.consume() * pace);
+		journey.update(frame.delta);
+		camera.isFree = journey.activeStop !== null;
+		camera.follow(journey.sample, frame);
+		this.guideWhale(journey.progress, camera);
+
+		world.simulate(frame, camera.position, journey.progress);
+		world.syncToCamera(camera, frame);
+
+		const depth = SURFACE_Y - camera.position.y;
+		this._environment.update(depth, world.shelterAt(camera.position), frame.delta);
+		this._lamp.update(this._environment.darkness, frame.delta);
+		this._storm.update(depth, frame.delta);
+		world.flash = this._storm.flash;
+		this._calm = damp(this._calm, world.atlantis.isAwake ? 1 : 0, 0.25, frame.delta);
+		world.surface.calm = this._calm;
+		post.lamp = this._lamp.level;
+		this.breathe(camera, frame.delta);
+		this._sound.update(depth, world.sceneWeights(camera.position), frame.delta);
+		this._quality.update(frame.delta);
+		this.publishTelemetry(journey, camera, depth, frame.delta);
+
+		const motion = Math.min(1, (Math.abs(journey.progress - this._lastProgress) / Math.max(frame.delta, 1e-3)) * 25);
+		this._lastProgress = journey.progress;
+		this._fade = damp(this._fade, this._phase === GamePhase.FINISHED ? 0.35 : 0, 0.6, frame.delta);
+		post.fade = this._fade;
+
+		const isDeepSpeaking = this._sound.voices.isSpeaking && journey.progress > 0.5 && journey.progress < 0.9;
+		post.render(motion, isDeepSpeaking ? 0.25 : 0, frame);
+	};
+
+	/** The whale swims its route a little ahead of the camera, then leaves once the temple is in sight. */
+	private guideWhale(progress: number, camera: RailCamera): void {
+		const whale = this._world?.passage.whale;
+
+		if (!whale || !this._isWhaleLeading) {
+			return;
+		}
+
+		if (progress > Experience.WHALE_RELEASE) {
+			whale.setGuide(null);
+		} else {
+			whale.leadFrom(camera.position, Experience.WHALE_LEAD);
 		}
 	}
 
-	/** 0..1 how starved of air the diver is. */
-	private hypoxia(): number {
-		return this._oxygen.isLow ? 1 - this._oxygen.level / 0.22 : 0;
+	/** Every few seconds the diver exhales a cloud of bubbles that rises past the view. */
+	private breathe(camera: RailCamera, delta: number): void {
+		if (this._phase !== GamePhase.JOURNEY) {
+			return;
+		}
+
+		const previous = this._breath;
+		this._breath = (this._breath + delta / Experience.BREATH_SECONDS) % 1;
+
+		if (previous < 0.55 && this._breath >= 0.55) {
+			camera.getWorldDirection(this._forward);
+			this._projected
+				.copy(camera.position)
+				.addScaledVector(this._forward, 0.9)
+				.add(new Vector3(0, -0.55, 0));
+			this._world?.bubbles.burst(this._projected, 9);
+			this._sound.effects.exhale(0.6);
+		} else if (this._breath < previous) {
+			this._sound.effects.inhale(0.5);
+		}
 	}
 
-	private signalBearing(): ISignalBearing | null {
-		if (!this._hasSignal) {
+	private hotspot(journey: JourneyDirector, camera: RailCamera): IHotspotView | null {
+		const stop = journey.activeStop;
+
+		if (!stop) {
 			return null;
 		}
 
-		this._projected.copy(this._signal).project(this._camera);
-
-		const isBehind = this._projected.z > 1;
-		const x = isBehind ? -this._projected.x : this._projected.x;
-		const y = isBehind ? -this._projected.y : this._projected.y;
+		this._projected.copy(stop.hotspot()).project(camera);
 
 		return {
-			angle: Math.atan2(x, y),
-			distance: this._world.diver.position.distanceTo(this._signal),
-			isVisible: !isBehind && Math.abs(x) < 0.92 && Math.abs(y) < 0.92
+			x: this._projected.x * 0.5 + 0.5,
+			y: 0.5 - this._projected.y * 0.5,
+			isVisible: this._projected.z < 1 && Math.abs(this._projected.x) < 0.95 && Math.abs(this._projected.y) < 0.95
 		};
 	}
 
-	private publishTelemetry(delta: number): void {
+	/** Compass heading, degrees: north is down the canyon (-Z). */
+	private heading(camera: RailCamera): number {
+		camera.getWorldDirection(this._forward);
+
+		return ((Math.atan2(this._forward.x, -this._forward.z) * 180) / Math.PI + 360) % 360;
+	}
+
+	private signal(journey: JourneyDirector, camera: RailCamera): ISignalView | null {
+		const stop = journey.nextStop;
+
+		if (!stop) {
+			return null;
+		}
+
+		const target = stop.hotspot();
+		// Into the camera's frame: -Z is straight ahead
+		this._local.copy(target).sub(camera.position).applyQuaternion(camera.quaternion.clone().invert());
+
+		return { bearing: Math.atan2(this._local.x, -this._local.z), distance: camera.position.distanceTo(target) };
+	}
+
+	private publishTelemetry(journey: JourneyDirector, camera: RailCamera, depth: number, delta: number): void {
 		this._telemetryTimer += delta;
 
 		if (this._telemetryTimer < Experience.TELEMETRY_INTERVAL) {
@@ -326,16 +421,16 @@ export default class Experience implements IDisposable {
 		}
 
 		this._telemetryTimer = 0;
-
-		const diver = this._world.diver;
 		this.events.emit('telemetry', {
-			depth: diver.depth,
-			oxygen: this._oxygen.level,
-			isLowOxygen: this._session.isPlaying && this._oxygen.isLow,
-			isSprinting: diver.isSprinting,
-			isFlashlightOn: diver.flashlight.isOn,
-			signal: this.signalBearing(),
-			location: this._world.sceneAt(diver.position).config.label
+			progress: journey.progress,
+			depth: Math.max(0, depth),
+			// Warm at the surface, near freezing in the abyss
+			temperature: Math.max(4, 26 - depth * 0.115),
+			hotspot: this.hotspot(journey, camera),
+			voiceLevel: this._sound.voices.level,
+			heading: this.heading(camera),
+			signal: this.signal(journey, camera),
+			radio: Math.max(0.08, 1 - depth / 160)
 		});
 	}
 }
