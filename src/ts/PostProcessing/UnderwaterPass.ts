@@ -13,6 +13,7 @@ interface IUnderwaterUniformValues {
 	uHypoxia: number;
 	uFade: number;
 	uTint: Color;
+	uLamp: number;
 }
 
 /** Refraction wobble, chromatic fringe, tinted mask vignette, hypoxia and blackout fade, grain: one pass. */
@@ -29,7 +30,8 @@ export default class UnderwaterPass extends ShaderPass {
 				uSpeed: { value: 0 },
 				uHypoxia: { value: 0 },
 				uFade: { value: 0 },
-				uTint: { value: new Color() }
+				uTint: { value: new Color() },
+				uLamp: { value: 0 }
 			},
 			vertexShader,
 			fragmentShader
@@ -49,6 +51,10 @@ export default class UnderwaterPass extends ShaderPass {
 
 	public set hypoxia(value: number) {
 		this._uniforms.uHypoxia.value = value;
+	}
+
+	public set lamp(value: number) {
+		this._uniforms.uLamp.value = value;
 	}
 
 	public set fade(value: number) {

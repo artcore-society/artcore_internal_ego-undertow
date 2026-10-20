@@ -6,7 +6,6 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import UnderwaterPass from './UnderwaterPass.ts';
 import { damp } from '../Helpers/math.ts';
 import type ExperienceRenderer from '../Core/ExperienceRenderer.ts';
-import type IDiverState from '../Contracts/IDiverState.ts';
 import type IDisposable from '../Contracts/IDisposable.ts';
 import type IEnvironmentAware from '../Contracts/IEnvironmentAware.ts';
 import type IEnvironmentState from '../Contracts/IEnvironmentState.ts';
@@ -49,14 +48,23 @@ export default class PostProcessing implements IResizable, IEnvironmentAware, ID
 		this._underwater.tint.copy(state.waterColor);
 	}
 
-	/** 0..1 how black the screen is (blackout). */
+	/** 0..1 how strongly the head lamp scatters in the water. */
+	public set lamp(value: number) {
+		this._underwater.lamp = value;
+	}
+
+	/** 0..1 how black the screen is (the ending fades out). */
 	public set fade(value: number) {
 		this._underwater.fade = value;
 	}
 
-	public render(diver: IDiverState, hypoxia: number, frame: IFrameContext): void {
-		this._speed = damp(this._speed, diver.isSprinting ? diver.speedRatio : 0, 3, frame.delta);
-		this._hypoxia = damp(this._hypoxia, hypoxia, 1.5, frame.delta);
+	/**
+	 * @param motion 0..1 how fast the journey is moving (fringing grows with speed)
+	 * @param dream 0..1 the world swims and desaturates (the voice of the deep)
+	 */
+	public render(motion: number, dream: number, frame: IFrameContext): void {
+		this._speed = damp(this._speed, motion, 3, frame.delta);
+		this._hypoxia = damp(this._hypoxia, dream, 1.5, frame.delta);
 		this._underwater.speed = this._speed;
 		this._underwater.hypoxia = this._hypoxia;
 		this._underwater.time = frame.elapsed;

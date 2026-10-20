@@ -8,6 +8,7 @@ uniform float uSpeed;
 uniform float uHypoxia;
 uniform float uFade;
 uniform vec3 uTint;
+uniform float uLamp;
 
 varying vec2 vUv;
 
@@ -32,15 +33,20 @@ void main() {
 		texture2D(tDiffuse, uv - centred * aberration).b
 	);
 
+	// Head lamp scattering in the murk: a soft cone of lit particles ahead, slightly below centre
+	vec2 beam = (vUv - vec2(0.53, 0.44)) * vec2(1.25, 1.0);
+	float scatter = exp(-dot(beam, beam) * 7.0) * (0.85 + 0.15 * sin(uTime * 1.7 + vUv.y * 9.0));
+	color += vec3(0.75, 0.9, 1.0) * scatter * uLamp * 0.06;
+
 	// Mask vignette, tinted with the water
-	float vignette = smoothstep(0.85, 0.25, radius * (1.0 + uHypoxia * 0.6));
-	color = mix(color * uTint * 0.4, color, vignette);
+	float vignette = smoothstep(0.8, 0.2, radius * (1.0 + uHypoxia * 0.6));
+	color = mix(color * uTint * 0.25, color, vignette);
 
 	float grey = dot(color, vec3(0.299, 0.587, 0.114));
 	color = mix(color, vec3(grey), uHypoxia * 0.55);
 
 	float grain = hash21(vUv * uResolution + fract(uTime * 7.31) * 100.0) - 0.5;
-	color += grain * 0.035 * (0.4 + 0.6 * grey);
+	color += grain * 0.03 * (0.4 + 0.6 * grey);
 
 	gl_FragColor = vec4(color * (1.0 - uFade), 1.0);
 }
