@@ -6,20 +6,37 @@
     inset: 11vh 0;
     z-index: 25;
     display: grid;
-    grid-template-rows: 1fr auto;
-    justify-items: center;
-    padding: var(--gutter-m);
-    pointer-events: none;
+    place-items: center;
+    padding: var(--space-24) var(--gutter-m);
+    cursor: pointer;
+
+    // A soft pool of shade behind the words: the sunset stays, the text reads
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background: radial-gradient(
+        ellipse 60% 70% at 50% 50%,
+        color-mix(in oklab, var(--color-abyss) 72%, transparent),
+        color-mix(in oklab, var(--color-abyss) 35%, transparent) 55%,
+        transparent 80%
+      );
+    }
+
+    .text {
+      text-shadow:
+        0 1px 2px color-mix(in oklab, var(--color-abyss) 80%, transparent),
+        0 4px 28px color-mix(in oklab, var(--color-abyss) 70%, transparent);
+    }
 
     &__title {
       display: grid;
       justify-items: center;
-      align-content: center;
       gap: var(--space-20);
       max-inline-size: 44rem;
       text-align: center;
-      pointer-events: auto;
-      animation: ending-rise 3.5s var(--transition-easing-out) both;
+      cursor: default;
     }
 
     &__heading {
@@ -31,44 +48,39 @@
       max-inline-size: 34rem;
     }
 
-    // Credits roll slowly up through a soft window, like the end of a film
-    &__credits {
-      block-size: 9rem;
-      inline-size: min(30rem, 100%);
-      overflow: hidden;
-      mask: linear-gradient(transparent, black 30%, black 70%, transparent);
+    &__credits-wrap {
+      display: grid;
+      justify-items: center;
+      gap: var(--space-20);
     }
 
-    &__roll {
+    // Credits: a framed, frosted panel, roles in the accent colour, names beneath
+    &__credits {
       display: grid;
-      gap: var(--space-24);
-      padding-block: 9rem;
-      text-align: center;
-      animation: ending-credits 32s linear 2s infinite;
+      grid-template-columns: 1fr;
+      gap: var(--space-20) var(--space-40);
+      inline-size: min(52rem, 100%);
+      margin: 0;
+      padding: var(--space-32) var(--space-40);
+      background: color-mix(in oklab, var(--color-abyss-900) 72%, transparent);
+      backdrop-filter: blur(14px);
 
-      @include sass.reduced-motion {
-        animation: none;
-        padding-block: 0;
+      @include sass.breakpoint-up(md) {
+        grid-template-columns: repeat(3, 1fr);
       }
     }
 
     &__credit {
       display: grid;
-      gap: var(--space-4);
-    }
-  }
+      align-content: start;
+      gap: var(--space-6);
 
-  @keyframes ending-rise {
-    from {
-      opacity: 0;
-      transform: translateY(24px);
-      filter: blur(8px);
-    }
-  }
-
-  @keyframes ending-credits {
-    to {
-      transform: translateY(-100%);
+      dd {
+        margin: 0;
+        color: var(--color-text-muted);
+        letter-spacing: 0.08em;
+        text-transform: none;
+      }
     }
   }
 }
