@@ -2,74 +2,70 @@
 import { ref } from 'vue';
 import { useExperience } from '../../../Composables/useExperience.ts';
 import { GamePhase } from '../../../Enums/GamePhase.ts';
-import { GameMode } from '../../../Enums/GameMode.ts';
 import LoadingScreen from '../LoadingScreen/LoadingScreen.vue';
 import IntroOverlay from '../IntroOverlay/IntroOverlay.vue';
-import Hud from '../Hud/Hud.vue';
-import ChapterCard from '../ChapterCard/ChapterCard.vue';
-import BlackoutOverlay from '../BlackoutOverlay/BlackoutOverlay.vue';
+import JourneyOverlay from '../JourneyOverlay/JourneyOverlay.vue';
 import EndingOverlay from '../EndingOverlay/EndingOverlay.vue';
 import Toolbar from '../Toolbar/Toolbar.vue';
+import ControlsCard from '../ControlsCard/ControlsCard.vue';
 
 const canvas = ref<HTMLCanvasElement | null>(null);
 
 const {
-	isReady,
+	loading,
 	phase,
-	mode,
 	isMuted,
-	shards,
-	result,
-	dialogue,
-	objective,
+	lights,
 	chapter,
-	blackout,
+	caption,
+	stop,
 	telemetry,
+	isHelpOpen,
 	begin,
-	continueFreely,
+	restart,
+	activateStop,
 	toggleMute,
-	toggleFlashlight,
-	skipDialogue
+	toggleHelp
 } = useExperience(canvas);
 </script>
 
 <template>
-	<div class="dive-experience">
+	<div class="dive-experience" :data-cinematic="stop !== null || phase === GamePhase.FINISHED || undefined">
 		<canvas ref="canvas" class="dive-experience__canvas" />
 
 		<Transition name="fade">
-			<LoadingScreen v-if="!isReady" />
+			<LoadingScreen v-if="phase === GamePhase.LOADING" :progress="loading" />
 		</Transition>
 
 		<Transition name="fade">
-			<IntroOverlay v-if="isReady && phase === GamePhase.INTRO" @begin="begin" />
+			<IntroOverlay v-if="phase === GamePhase.INTRO" @begin="begin" />
 		</Transition>
 
 		<Transition name="fade">
-			<Hud
-				v-if="phase !== GamePhase.INTRO"
+			<JourneyOverlay
+				v-if="phase === GamePhase.JOURNEY"
 				:telemetry="telemetry"
-				:shards="shards"
-				:objective="objective"
-				:dialogue="dialogue"
-				:is-free="mode === GameMode.FREE"
-				@skip-dialogue="skipDialogue"
+				:chapter="chapter"
+				:caption="caption"
+				:stop="stop"
+				:lights="lights"
+				@activate="activateStop"
 			/>
 		</Transition>
 
-		<ChapterCard v-if="chapter" :key="chapter.numeral" :card="chapter" />
-		<BlackoutOverlay v-if="blackout" :key="blackout.id" :message="blackout.message" />
-
 		<Transition name="fade">
-			<EndingOverlay v-if="result" :result="result" @again="begin(GameMode.STORY)" @continue="continueFreely" />
+			<EndingOverlay v-if="phase === GamePhase.FINISHED" :lights="lights" @again="restart" />
 		</Transition>
 
 		<Toolbar
-			v-if="isReady"
+			v-if="phase !== GamePhase.LOADING"
 			:is-muted="isMuted"
-			:is-flashlight-on="telemetry.isFlashlightOn"
 			@toggle-mute="toggleMute"
-			@toggle-flashlight="toggleFlashlight"
+			@help="toggleHelp(true)"
 		/>
+
+		<Transition name="fade">
+			<ControlsCard v-if="isHelpOpen" @close="toggleHelp(false)" />
+		</Transition>
 	</div>
 </template>

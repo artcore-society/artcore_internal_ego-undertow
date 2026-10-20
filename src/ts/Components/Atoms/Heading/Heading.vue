@@ -9,6 +9,7 @@ const props = withDefaults(
 		fontSize?: FontSize | undefined;
 		color?: TextColor | undefined;
 		glow?: boolean;
+		outline?: boolean;
 	}>(),
 	{ level: 2 }
 );
@@ -19,7 +20,16 @@ const size = computed<FontSize>(() => props.fontSize ?? DEFAULT_SIZES[props.leve
 </script>
 
 <template>
-	<Text :tag="`h${level}`" class="heading" :font-size="size" :color="color" :glow="glow" wrap="balance">
+	<Text
+		:tag="`h${level}`"
+		class="heading"
+		:font-size="size"
+		:color="color"
+		:glow="glow"
+		:outline="outline"
+		shadow
+		wrap="balance"
+	>
 		<slot />
 	</Text>
 </template>

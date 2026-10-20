@@ -1,0 +1,37 @@
+@layer molecules {
+  .hotspot-prompt {
+    position: absolute;
+    inset-inline-start: var(--hotspot-x, 50%);
+    inset-block-start: var(--hotspot-y, 62%);
+    display: grid;
+    justify-items: center;
+    gap: var(--space-12);
+    translate: -50% -20px;
+    transition:
+      inset-inline-start 120ms linear,
+      inset-block-start 120ms linear;
+
+    &__button {
+      display: grid;
+      justify-items: center;
+      gap: var(--space-12);
+      pointer-events: auto;
+
+      &:hover .pulse__core {
+        background: var(--color-accent);
+      }
+
+      &:focus-visible {
+        outline: var(--border-m) solid var(--color-accent);
+        outline-offset: var(--space-8);
+      }
+    }
+
+    &__label {
+      padding: var(--space-8) var(--space-16);
+      border: var(--border-s) solid var(--color-border-strong);
+      background: color-mix(in oklab, var(--color-abyss) 35%, transparent);
+      backdrop-filter: blur(8px);
+    }
+  }
+}

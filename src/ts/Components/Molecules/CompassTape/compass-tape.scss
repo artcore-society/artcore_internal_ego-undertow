@@ -1,0 +1,64 @@
+@layer molecules {
+  .compass-tape {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: var(--space-8);
+    inline-size: min(26rem, 70vw);
+
+    &__scale {
+      position: relative;
+      inline-size: 100%;
+      block-size: var(--space-24);
+      // Fade the ends of the tape
+      mask: linear-gradient(90deg, transparent, black 18%, black 82%, transparent);
+    }
+
+    &__tick {
+      position: absolute;
+      inset-block-end: 0;
+      inset-inline-start: calc(var(--offset) * 100%);
+      inline-size: 1px;
+      block-size: 5px;
+      background: var(--color-text-subtle);
+
+      &[data-major] {
+        block-size: 9px;
+        background: var(--color-text-muted);
+      }
+    }
+
+    &__label {
+      position: absolute;
+      inset-block-end: calc(100% + 2px);
+      inset-inline-start: 50%;
+      translate: -50% 0;
+      color: var(--color-text-muted);
+    }
+
+    &__signal {
+      position: absolute;
+      inset-block-end: 0;
+      inset-inline-start: calc(var(--offset) * 100%);
+      inline-size: 7px;
+      aspect-ratio: 1;
+      translate: -50% 50%;
+      rotate: 45deg;
+      background: var(--color-accent);
+      box-shadow: 0 0 10px var(--color-accent);
+    }
+
+    &__needle {
+      position: absolute;
+      inset-block-start: calc(var(--space-24) + 2px);
+      inline-size: 0;
+      block-size: 0;
+      border-inline: 5px solid transparent;
+      border-block-end: 7px solid var(--color-text);
+    }
+
+    &__heading {
+      color: var(--color-text);
+    }
+  }
+}

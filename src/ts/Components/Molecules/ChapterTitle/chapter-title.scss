@@ -1,0 +1,48 @@
+@use '../../Sass/sass.scss';
+
+@layer molecules {
+  .chapter-title {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-16);
+    max-inline-size: min(60rem, 92vw);
+    text-align: center;
+    animation: chapter-title 6s var(--transition-easing-in-out) both;
+
+    @include sass.reduced-motion {
+      animation-name: chapter-title-fade;
+    }
+  }
+
+  @keyframes chapter-title {
+    0% {
+      opacity: 0;
+      letter-spacing: 0.25em;
+      filter: blur(8px);
+    }
+
+    20%,
+    75% {
+      opacity: 1;
+      letter-spacing: 0.01em;
+      filter: blur(0);
+    }
+
+    100% {
+      opacity: 0;
+      filter: blur(6px);
+    }
+  }
+
+  @keyframes chapter-title-fade {
+    0%,
+    100% {
+      opacity: 0;
+    }
+
+    15%,
+    80% {
+      opacity: 1;
+    }
+  }
+}

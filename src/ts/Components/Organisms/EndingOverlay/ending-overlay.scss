@@ -1,0 +1,74 @@
+@use '../../Sass/sass.scss';
+
+@layer organisms {
+  .ending-overlay {
+    position: absolute;
+    inset: 11vh 0;
+    z-index: 25;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    justify-items: center;
+    padding: var(--gutter-m);
+    pointer-events: none;
+
+    &__title {
+      display: grid;
+      justify-items: center;
+      align-content: center;
+      gap: var(--space-20);
+      max-inline-size: 44rem;
+      text-align: center;
+      pointer-events: auto;
+      animation: ending-rise 3.5s var(--transition-easing-out) both;
+    }
+
+    &__heading {
+      display: grid;
+      margin: 0;
+    }
+
+    &__text {
+      max-inline-size: 34rem;
+    }
+
+    // Credits roll slowly up through a soft window, like the end of a film
+    &__credits {
+      block-size: 9rem;
+      inline-size: min(30rem, 100%);
+      overflow: hidden;
+      mask: linear-gradient(transparent, black 30%, black 70%, transparent);
+    }
+
+    &__roll {
+      display: grid;
+      gap: var(--space-24);
+      padding-block: 9rem;
+      text-align: center;
+      animation: ending-credits 32s linear 2s infinite;
+
+      @include sass.reduced-motion {
+        animation: none;
+        padding-block: 0;
+      }
+    }
+
+    &__credit {
+      display: grid;
+      gap: var(--space-4);
+    }
+  }
+
+  @keyframes ending-rise {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+      filter: blur(8px);
+    }
+  }
+
+  @keyframes ending-credits {
+    to {
+      transform: translateY(-100%);
+    }
+  }
+}

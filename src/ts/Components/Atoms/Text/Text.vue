@@ -8,6 +8,8 @@ withDefaults(
 		color?: TextColor | undefined;
 		numeric?: boolean;
 		glow?: boolean;
+		outline?: boolean;
+		shadow?: boolean;
 		wrap?: 'balance' | undefined;
 	}>(),
 	{ tag: 'p' }
@@ -22,6 +24,8 @@ withDefaults(
 		:data-color="color"
 		:data-numeric="numeric || undefined"
 		:data-glow="glow || undefined"
+		:data-outline="outline || undefined"
+		:data-shadow="shadow || undefined"
 		:data-wrap="wrap"
 	>
 		<slot />

@@ -1,0 +1,76 @@
+@layer molecules {
+  .depth-gauge {
+    display: flex;
+    align-items: center;
+    gap: var(--space-16);
+
+    &__ruler {
+      position: relative;
+      inline-size: var(--space-40);
+      block-size: min(34vh, 16rem);
+      border-inline-end: var(--border-s) solid var(--color-border);
+      mask: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+    }
+
+    &__tick {
+      position: absolute;
+      inset-inline-end: 0;
+      inset-block-start: calc(var(--offset) * 100%);
+      inline-size: 5px;
+      block-size: 1px;
+      background: var(--color-text-subtle);
+
+      &[data-major] {
+        inline-size: 10px;
+        background: var(--color-text-muted);
+      }
+    }
+
+    // Numbers sit inside the ruler, left of the ticks, so they never leave the screen
+    &__mark {
+      position: absolute;
+      inset-inline-end: calc(100% + var(--space-4));
+      inset-block-start: 50%;
+      translate: 0 -50%;
+      color: var(--color-text-subtle);
+    }
+
+    &__pointer {
+      position: absolute;
+      inset-inline-end: -1px;
+      inset-block-start: 50%;
+      inline-size: 0;
+      block-size: 0;
+      translate: 100% -50%;
+      border-block: 5px solid transparent;
+      border-inline-start: 7px solid var(--color-accent);
+      filter: drop-shadow(0 0 6px var(--color-accent));
+    }
+
+    &__readout {
+      display: grid;
+      gap: var(--space-6);
+    }
+
+    &__unit {
+      margin-inline-start: var(--space-4);
+      font-size: 0.45em;
+      color: var(--color-text-muted);
+    }
+
+    &__stats {
+      display: flex;
+      gap: var(--space-16);
+
+      div {
+        display: flex;
+        gap: var(--space-6);
+      }
+    }
+
+    &__location {
+      padding-block-start: var(--space-6);
+      border-block-start: var(--border-s) solid var(--color-border);
+    }
+  }
+}

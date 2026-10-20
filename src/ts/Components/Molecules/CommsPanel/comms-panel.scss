@@ -1,0 +1,107 @@
+@use '../../Sass/sass.scss';
+
+@layer molecules {
+  .comms-panel {
+    --avatar-size: 3.5rem;
+    --speaker-color: var(--color-accent);
+
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-16);
+    inline-size: min(38rem, calc(100vw - var(--gutter-m) * 2));
+    padding: var(--space-16) var(--space-20);
+    border-inline-start: var(--border-m) solid var(--speaker-color);
+    background: linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--color-abyss) 70%, transparent),
+      color-mix(in oklab, var(--color-abyss) 15%, transparent)
+    );
+    backdrop-filter: blur(10px);
+
+    @include sass.breakpoint-up(md) {
+      --avatar-size: 4.25rem;
+    }
+
+    &__body {
+      display: grid;
+      gap: var(--space-8);
+      flex: 1;
+    }
+
+    &__header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-4) var(--space-12);
+    }
+
+    &__name {
+      color: var(--speaker-color);
+    }
+
+    &__bars {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 2px;
+      block-size: 10px;
+      margin-inline-start: auto;
+
+      span {
+        inline-size: 3px;
+        background: var(--color-track);
+
+        @for $i from 1 through 4 {
+          &:nth-child(#{$i}) {
+            block-size: #{$i * 25%};
+          }
+        }
+
+        &[data-on] {
+          background: var(--speaker-color);
+        }
+      }
+    }
+
+    // The unrevealed part keeps the box from growing while the line types out
+    &__ghost {
+      visibility: hidden;
+    }
+
+    &__wave {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      block-size: var(--space-12);
+
+      span {
+        inline-size: 2px;
+        block-size: calc(2px + var(--bar) * 10px);
+        background: var(--speaker-color);
+        opacity: 0.8;
+        transition: block-size 80ms linear;
+      }
+    }
+
+    &[data-speaker='Kai'] {
+      --speaker-color: var(--color-speaker-kai);
+    }
+
+    &[data-speaker='Mara'] {
+      --speaker-color: var(--color-speaker-mara);
+    }
+
+    &[data-speaker='You'] {
+      --speaker-color: var(--color-speaker-you);
+    }
+
+    &[data-speaker='The Deep'] {
+      --speaker-color: var(--color-speaker-deep);
+    }
+
+    // The Deep doesn't use a radio: the line drifts in, lighter and spaced
+    &[data-speaker='The Deep'] &__text {
+      font-weight: 200;
+      letter-spacing: 0.06em;
+    }
+  }
+}

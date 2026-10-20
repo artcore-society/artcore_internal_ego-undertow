@@ -1,0 +1,28 @@
+@layer organisms {
+  .intro-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: var(--gutter-m);
+    background: radial-gradient(ellipse at center, color-mix(in oklab, var(--color-abyss) 35%, transparent), transparent 70%);
+
+    &__content {
+      display: grid;
+      justify-items: center;
+      gap: var(--space-24);
+      max-inline-size: 44rem;
+      text-align: center;
+    }
+
+    &__title {
+      display: grid;
+      margin: 0;
+    }
+
+    &__text {
+      max-inline-size: 34rem;
+    }
+  }
+}

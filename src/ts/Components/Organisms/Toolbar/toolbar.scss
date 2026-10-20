@@ -1,0 +1,20 @@
+@layer organisms {
+  .toolbar {
+    position: absolute;
+    inset: var(--gutter-s) var(--gutter-s) auto;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+
+    &__actions {
+      display: flex;
+      gap: var(--space-4);
+    }
+
+    &__mark {
+      letter-spacing: 0.5em;
+    }
+  }
+}

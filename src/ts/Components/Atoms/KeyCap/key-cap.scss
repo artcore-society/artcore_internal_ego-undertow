@@ -1,0 +1,17 @@
+@layer atoms {
+  .key-cap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: var(--space-32);
+    block-size: var(--space-32);
+    padding-inline: var(--space-8);
+    border: var(--border-s) solid var(--color-border-strong);
+    background: var(--color-surface);
+    font-family: var(--text-font-default);
+    font-size: var(--text-font-size-label);
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--color-text);
+  }
+}

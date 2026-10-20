@@ -1,0 +1,109 @@
+@use '../../Sass/sass.scss';
+
+@layer organisms {
+  .journey-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    pointer-events: none;
+
+    // The rim of the mask: corners fall away into darkness, like looking out through glass
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        ellipse 75% 68% at 50% 48%,
+        transparent 62%,
+        color-mix(in oklab, var(--color-abyss) 55%, transparent) 86%,
+        color-mix(in oklab, var(--color-abyss) 85%, transparent)
+      );
+    }
+
+    // Cutscene: the instruments step back, the prompt takes over
+    &[data-cinematic] &__compass,
+    &[data-cinematic] &__depth,
+    &[data-cinematic] &__rail,
+    &[data-cinematic] &__sonar {
+      opacity: 0;
+    }
+
+    &__compass,
+    &__depth,
+    &__rail,
+    &__sonar {
+      transition: opacity var(--transition-duration-600);
+    }
+
+    &__cue {
+      position: absolute;
+      inset-block-end: calc(5.5vh - 0.6em);
+      inset-inline-start: 50%;
+      z-index: 2;
+      translate: -50% 0;
+      display: flex;
+      align-items: center;
+      gap: var(--space-16);
+      white-space: nowrap;
+    }
+
+    &__compass {
+      position: absolute;
+      inset-block-start: var(--gutter-s);
+      inset-inline-start: 50%;
+      translate: -50% 0;
+    }
+
+    &__centre {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding-block-end: 10vh;
+    }
+
+    &__depth {
+      position: absolute;
+      inset-inline-start: var(--gutter-s);
+      inset-block-start: 50%;
+      translate: 0 -50%;
+    }
+
+    &__rail {
+      position: absolute;
+      inset-inline-end: var(--gutter-s);
+      inset-block-start: 50%;
+      translate: 0 -50%;
+    }
+
+    &__comms {
+      position: absolute;
+      inset-block-end: var(--gutter-s);
+      transition: inset-block-end var(--transition-duration-800) var(--transition-easing-in-out);
+      inset-inline-start: 50%;
+      translate: -50% 0;
+    }
+
+    &__sonar {
+      position: absolute;
+      inset-inline-end: var(--gutter-s);
+      inset-block-end: var(--gutter-s);
+      display: none;
+
+      @include sass.breakpoint-up(lg) {
+        display: flex;
+      }
+    }
+
+    &[data-cinematic] &__comms {
+      inset-block-end: calc(11vh + var(--space-16));
+    }
+
+    &__hint {
+      position: absolute;
+      inset-block-end: calc(var(--gutter-m) + 2rem);
+      inset-inline-start: 50%;
+      translate: -50% 0;
+    }
+  }
+}

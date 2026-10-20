@@ -1,0 +1,27 @@
+@layer organisms {
+  .loading-screen {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: var(--space-40);
+    background: radial-gradient(ellipse at 50% 0%, var(--color-deep), var(--color-abyss) 70%);
+
+    &__title {
+      opacity: 0.85;
+    }
+
+    &__progress {
+      display: grid;
+      gap: var(--space-12);
+      inline-size: min(20rem, 70vw);
+    }
+
+    &__status {
+      display: flex;
+      justify-content: space-between;
+    }
+  }
+}

@@ -3,44 +3,50 @@
 @layer atoms {
   .pulse {
     position: relative;
-    inline-size: var(--space-48);
+    display: inline-block;
+    inline-size: var(--space-40);
     aspect-ratio: 1;
 
     &::before,
     &::after {
       content: '';
       position: absolute;
-      border-radius: 50%;
-    }
-
-    &::before {
       inset: 0;
-      border: var(--border-s) solid var(--color-accent);
-      animation: pulse-ring 1.6s var(--transition-easing-out) infinite;
+      border-radius: 50%;
+      border: var(--border-s) solid var(--color-text);
+      animation: pulse-ring 2s var(--transition-easing-out) infinite;
     }
 
     &::after {
-      inset: var(--space-12);
-      background: var(--color-accent);
-      filter: blur(2px);
+      animation-delay: -1s;
+    }
+
+    &__core {
+      position: absolute;
+      inset: 38%;
+      border-radius: 50%;
+      background: var(--color-text);
+      box-shadow: 0 0 14px var(--color-accent);
     }
 
     @include sass.reduced-motion {
-      &::before {
+      &::before,
+      &::after {
         animation: none;
+        opacity: 0.5;
       }
     }
   }
 
   @keyframes pulse-ring {
     from {
-      opacity: 1;
-      transform: scale(0.6);
+      opacity: 0.9;
+      transform: scale(0.35);
     }
 
     to {
       opacity: 0;
-      transform: scale(1.6);
+      transform: scale(1.3);
     }
   }
 }

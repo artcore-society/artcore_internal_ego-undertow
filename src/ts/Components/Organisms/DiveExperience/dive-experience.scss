@@ -10,5 +10,35 @@
       block-size: 100%;
       outline: none;
     }
+
+    // Letterbox bars: the journey has stopped for a moment, like a cutscene
+    &::before,
+    &::after {
+      content: '';
+      position: absolute;
+      inset-inline: 0;
+      z-index: 9;
+      block-size: 11vh;
+      background: #000000;
+      pointer-events: none;
+      transition: transform var(--transition-duration-800) var(--transition-easing-in-out);
+    }
+
+    &::before {
+      inset-block-start: 0;
+      transform: translateY(-100%);
+    }
+
+    &::after {
+      inset-block-end: 0;
+      transform: translateY(100%);
+    }
+
+    &[data-cinematic] {
+      &::before,
+      &::after {
+        transform: none;
+      }
+    }
   }
 }

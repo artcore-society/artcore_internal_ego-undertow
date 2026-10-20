@@ -5,58 +5,48 @@
 
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: var(--space-12);
     padding: var(--action-padding-block) var(--action-padding-inline);
-    border-radius: var(--rounded-pill);
-    color: var(--action-color);
-    background: var(--action-background);
+    color: var(--action-color, var(--color-text));
+    background: var(--action-background, transparent);
+    pointer-events: auto;
     transition:
       color var(--transition-duration) var(--transition-easing-out),
       background var(--transition-duration) var(--transition-easing-out),
-      box-shadow var(--transition-duration-400) var(--transition-easing-out);
+      letter-spacing var(--transition-duration-400) var(--transition-easing-out);
 
     &:focus-visible {
       outline: var(--border-m) solid var(--color-accent);
       outline-offset: var(--space-4);
     }
 
-    &__arrow {
-      transition: transform var(--transition-duration) var(--transition-easing-spring);
-    }
-
-    &:hover &__arrow {
-      transform: translateX(var(--space-4));
-    }
-
-    &[data-variant='button'] {
-      --action-color: var(--color-button-text);
-      --action-background: var(--color-button-background);
+    // Viewfinder brackets: the reference's call to action
+    &[data-variant='frame'] {
+      --frame-color: var(--color-border-strong);
 
       &:hover {
-        --action-background: var(--color-button-background-hover);
+        --action-background: color-mix(in oklab, var(--color-foam) 8%, transparent);
+        --frame-color: var(--color-text);
 
-        box-shadow: 0 0 40px var(--color-glow-shadow);
+        letter-spacing: 0.04em;
       }
     }
 
-    &[data-variant='button-secondary'] {
-      --action-color: var(--color-button-secondary-text);
-      --action-background: transparent;
-      --action-padding-inline: var(--space-16);
+    &[data-variant='solid'] {
+      --action-color: var(--color-abyss);
+      --action-background: var(--color-foam);
 
       &:hover {
-        --action-color: var(--color-button-secondary-text-hover);
+        --action-background: var(--color-accent);
       }
     }
 
-    // Small frosted control in the toolbar
-    &[data-variant='glass'] {
+    // Small control in the corners
+    &[data-variant='ghost'] {
       --action-color: var(--color-text-muted);
       --action-padding-block: var(--space-8);
-      --action-padding-inline: var(--space-16);
-
-      pointer-events: auto;
-      gap: var(--space-8);
+      --action-padding-inline: var(--space-12);
 
       &:hover {
         --action-color: var(--color-text);

@@ -36,64 +36,67 @@ $gutter-sizes: (
 $durations: (0, 100, 150, 200, 250, 300, 400, 500, 600, 800, 1000, 1400);
 
 // Typography — `size` is a (min, max) px pair for fluid(), or a single px value for rem()
-// Instrument Serif for the story's voice, Space Grotesk for reading, JetBrains Mono for instruments.
-$display-font: '"Instrument Serif", "Times New Roman", serif';
-$text-font: '"Space Grotesk", system-ui, sans-serif';
-$instrument-font: '"JetBrains Mono", ui-monospace, monospace';
+// Saira throughout: wide, technical, calm — instrument panel and title card in one family.
+$text-font: '"Saira", system-ui, sans-serif';
 
 $typography: (
-  // Title on the intro screen and chapter cards
+  // Journey and chapter titles
   display: (
-    size: (60px, 156px),
-    line-height: 0.88,
-    weight: 400,
-    font: $display-font,
-    style: italic,
-  ),
-  // Big numbers: score, results
-  numeral: (
-    size: (40px, 72px),
-    line-height: 1,
-    weight: 400,
-    font: $instrument-font,
+    size: (48px, 132px),
+    line-height: 0.9,
+    weight: 600,
+    transform: uppercase,
+    tracking: 0.01em,
   ),
   h1: (
-    size: (36px, 58px),
+    size: (30px, 54px),
     line-height: 1,
-    weight: 400,
-    font: $display-font,
+    weight: 600,
+    transform: uppercase,
+    tracking: 0.02em,
   ),
   h2: (
-    size: (26px, 36px),
-    line-height: 1.05,
+    size: (20px, 28px),
+    line-height: 1.1,
+    weight: 500,
+    transform: uppercase,
+    tracking: 0.04em,
+  ),
+  // Spoken lines
+  caption: (
+    size: (17px, 23px),
+    line-height: 1.4,
     weight: 400,
-    font: $display-font,
   ),
   lead: (
-    size: (17px, 20px),
+    size: (16px, 19px),
+    line-height: 1.55,
+    weight: 300,
+  ),
+  body: (
+    size: (14px, 15px),
     line-height: 1.5,
     weight: 400,
   ),
-  body: (
-    size: (15px, 16px),
-    line-height: 1.5,
-    weight: 400,
+  // Depth, temperature, percentages
+  numeral: (
+    size: (24px, 34px),
+    line-height: 1,
+    weight: 300,
   ),
   label: (
     size: 11px,
-    line-height: 1.1,
+    line-height: 1.2,
     weight: 500,
-    font: $instrument-font,
     transform: uppercase,
-    tracking: 0.18em,
+    tracking: 0.24em,
   ),
   button: (
-    size: 13px,
+    size: 12px,
     line-height: 1,
-    weight: 700,
-    font: $instrument-font,
+    weight: 600,
     transform: uppercase,
-    tracking: 0.14em,
+    tracking: 0.22em,
   ),
 );
 

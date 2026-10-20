@@ -1,0 +1,18 @@
+@layer atoms {
+  .progress-bar {
+    inline-size: 100%;
+    block-size: 1px;
+    background: var(--color-track);
+    overflow: hidden;
+
+    &__fill {
+      block-size: 100%;
+      inline-size: 100%;
+      background: var(--color-text);
+      box-shadow: 0 0 12px var(--color-accent);
+      transform-origin: left;
+      transform: scaleX(var(--progress));
+      transition: transform var(--transition-duration-300) var(--transition-easing-out);
+    }
+  }
+}

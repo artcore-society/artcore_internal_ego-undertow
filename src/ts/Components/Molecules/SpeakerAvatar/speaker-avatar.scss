@@ -1,0 +1,51 @@
+@layer molecules {
+  .speaker-avatar {
+    --avatar-color: var(--color-accent);
+    --voice-level: 0;
+
+    position: relative;
+    flex: none;
+    inline-size: var(--avatar-size, 4.5rem);
+    aspect-ratio: 1;
+    margin: 0;
+
+    &__portrait {
+      display: block;
+      inline-size: 100%;
+      block-size: 100%;
+      border-radius: 50%;
+      box-shadow: 0 0 0 var(--border-s) color-mix(in oklab, var(--avatar-color) 60%, transparent);
+    }
+
+    // Breathes with the voice
+    &__ring {
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: var(--border-m) solid var(--avatar-color);
+      opacity: calc(0.25 + var(--voice-level) * 0.75);
+      transform: scale(calc(1 + var(--voice-level) * 0.12));
+      box-shadow: 0 0 calc(8px + var(--voice-level) * 26px) var(--avatar-color);
+      transition:
+        transform 80ms linear,
+        opacity 80ms linear,
+        box-shadow 80ms linear;
+    }
+
+    &[data-speaker='Kai'] {
+      --avatar-color: var(--color-speaker-kai);
+    }
+
+    &[data-speaker='Mara'] {
+      --avatar-color: var(--color-speaker-mara);
+    }
+
+    &[data-speaker='You'] {
+      --avatar-color: var(--color-speaker-you);
+    }
+
+    &[data-speaker='The Deep'] {
+      --avatar-color: var(--color-speaker-deep);
+    }
+  }
+}

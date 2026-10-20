@@ -1,0 +1,63 @@
+@layer molecules {
+  .progress-rail {
+    position: relative;
+    inline-size: var(--space-32);
+    block-size: min(46vh, 22rem);
+
+    &__line,
+    &__fill {
+      position: absolute;
+      inset-inline-start: 50%;
+      inset-block: 0;
+      inline-size: 1px;
+      background: var(--color-track);
+    }
+
+    &__fill {
+      background: var(--color-text);
+      transform-origin: top;
+      transform: scaleY(var(--progress));
+    }
+
+    &__mark {
+      position: absolute;
+      inset-block-start: calc(var(--at) * 100%);
+      inset-inline-end: calc(50% + var(--space-12));
+      translate: 0 -50%;
+      color: var(--color-text-subtle);
+      transition: color var(--transition-duration-400);
+
+      &::after {
+        content: '';
+        position: absolute;
+        inset-inline-start: calc(100% + var(--space-6));
+        inset-block-start: 50%;
+        inline-size: 5px;
+        aspect-ratio: 1;
+        translate: 0 -50%;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      &[data-passed] {
+        color: var(--color-text-muted);
+      }
+
+      &[data-active] {
+        color: var(--color-accent);
+      }
+    }
+
+    &__diver {
+      position: absolute;
+      inset-inline-start: 50%;
+      inset-block-start: calc(var(--progress) * 100%);
+      inline-size: var(--space-12);
+      aspect-ratio: 1;
+      translate: -50% -50%;
+      border-radius: 50%;
+      border: var(--border-s) solid var(--color-accent);
+      box-shadow: 0 0 12px var(--color-accent);
+    }
+  }
+}

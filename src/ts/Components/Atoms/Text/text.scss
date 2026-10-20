@@ -57,6 +57,16 @@
       text-shadow: 0 0 24px var(--color-glow-shadow);
     }
 
+    // Hollow letters, like the first line of a title card
+    &[data-outline] {
+      color: transparent;
+      -webkit-text-stroke: max(1px, 0.012em) var(--text-color, var(--color-text));
+    }
+
+    &[data-shadow] {
+      text-shadow: 0 2px 18px color-mix(in oklab, var(--color-abyss) 60%, transparent);
+    }
+
     &[data-wrap='balance'] {
       text-wrap: balance;
     }

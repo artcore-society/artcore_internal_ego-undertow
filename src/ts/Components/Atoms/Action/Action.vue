@@ -3,10 +3,9 @@ import Text from '../Text/Text.vue';
 
 const props = withDefaults(
 	defineProps<{
-		variant?: 'button' | 'button-secondary' | 'glass';
-		arrow?: boolean;
+		variant?: 'frame' | 'solid' | 'ghost';
 	}>(),
-	{ variant: 'button' }
+	{ variant: 'frame' }
 );
 
 defineEmits<{
@@ -19,15 +18,14 @@ defineEmits<{
 		type="button"
 		class="action"
 		:data-variant="variant"
-		:data-glass="props.variant === 'glass' || undefined"
-		:data-theme="props.variant === 'glass' ? 'glass' : undefined"
+		:data-frame="props.variant === 'frame' || undefined"
 		@mousedown.prevent
 		@click="$emit('click')"
 	>
-		<Text tag="span" :font-size="variant === 'glass' ? 'body' : 'button'">
+		<slot name="before" />
+		<Text tag="span" font-size="button">
 			<slot />
 		</Text>
 		<slot name="after" />
-		<span v-if="arrow" class="action__arrow" aria-hidden="true">→</span>
 	</button>
 </template>

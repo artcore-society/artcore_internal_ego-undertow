@@ -1,0 +1,40 @@
+@use '../../Sass/sass.scss';
+
+@layer molecules {
+  .scroll-hint {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-12);
+
+    &__line {
+      position: relative;
+      inline-size: 1px;
+      block-size: var(--space-48);
+      background: var(--color-track);
+      overflow: hidden;
+
+      &::after {
+        content: '';
+        position: absolute;
+        inset-inline: 0;
+        block-size: 40%;
+        background: var(--color-text);
+        animation: scroll-hint 1.8s var(--transition-easing-in-out) infinite;
+
+        @include sass.reduced-motion {
+          animation: none;
+        }
+      }
+    }
+  }
+
+  @keyframes scroll-hint {
+    from {
+      transform: translateY(-100%);
+    }
+
+    to {
+      transform: translateY(250%);
+    }
+  }
+}

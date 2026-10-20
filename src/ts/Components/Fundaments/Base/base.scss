@@ -12,9 +12,16 @@
     margin: 0;
   }
 
+  // A full-screen experience: the page itself never scrolls, bounces or pull-to-refreshes
+  html,
   body {
+    overflow: hidden;
     overscroll-behavior: none;
+  }
+
+  body {
     background: var(--color-background);
+    touch-action: none;
   }
 
   :where(h1, h2, h3, h4, h5, h6, p, dl, dd, figure) {
