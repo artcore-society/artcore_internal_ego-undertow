@@ -13,10 +13,11 @@
     border-inline-start: var(--border-m) solid var(--speaker-color);
     background: linear-gradient(
       90deg,
-      color-mix(in oklab, var(--color-abyss) 70%, transparent),
-      color-mix(in oklab, var(--color-abyss) 15%, transparent)
+      color-mix(in oklab, var(--color-abyss) 82%, transparent),
+      color-mix(in oklab, var(--color-abyss) 58%, transparent)
     );
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(14px) brightness(0.7);
+    text-shadow: 0 1px 3px color-mix(in oklab, var(--color-abyss) 80%, transparent);
 
     @include sass.breakpoint-up(md) {
       --avatar-size: 4.25rem;
