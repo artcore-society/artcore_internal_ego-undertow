@@ -26,7 +26,10 @@ export const MODEL_NAMES = [
 	'sea_turtle',
 	'old_ruined_column',
 	'half_temple_of_apollon_portara',
-	'elder_stones'
+	'elder_stones',
+	'greek_style_ancient_temple',
+	'greek_tholos',
+	'roman_greco_temple_aged'
 ] as const;
 
 export type ModelName = (typeof MODEL_NAMES)[number];

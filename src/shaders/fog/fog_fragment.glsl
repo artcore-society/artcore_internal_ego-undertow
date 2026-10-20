@@ -1,8 +1,15 @@
 #ifdef USE_FOG
+	// Landmarks (the city's skyline) define FOG_REACH < 1: big, pale shapes loom out of the murk
+	// from further away than small things do
+	float fogDepth = vFogDepth;
+	#ifdef FOG_REACH
+		fogDepth *= FOG_REACH;
+	#endif
+
 	#ifdef FOG_EXP2
-		float fogFactor = 1.0 - exp(- fogDensity * fogDensity * vFogDepth * vFogDepth);
+		float fogFactor = 1.0 - exp(- fogDensity * fogDensity * fogDepth * fogDepth);
 	#else
-		float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
+		float fogFactor = smoothstep(fogNear, fogFar, fogDepth);
 	#endif
 
 	// Water is brighter towards the surface and darker towards the deep

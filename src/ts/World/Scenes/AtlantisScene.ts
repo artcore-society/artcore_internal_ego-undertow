@@ -25,6 +25,7 @@ import { damp } from '../../Helpers/math.ts';
 import { SCENES, SURFACE_Y } from '../../Config/world.ts';
 import { SceneId } from '../../Enums/SceneId.ts';
 import type { IMaterialPatch } from '../../Helpers/MaterialPatch.ts';
+import type { ModelName } from '../../Config/assets.ts';
 import type { IPropPlacement } from './IPropPlacement.ts';
 import type ISceneContext from './ISceneContext.ts';
 import type IFrameContext from '../../Contracts/IFrameContext.ts';
@@ -44,6 +45,8 @@ export default class AtlantisScene extends DiveScene {
 	/** Avenue directions, radians: the approach (+Z) first. */
 	private static readonly AVENUES = [Math.PI / 2, Math.PI / 2 + (Math.PI * 2) / 3, Math.PI / 2 - (Math.PI * 2) / 3];
 	private static readonly GATE_DISTANCE = 50;
+	/** The skyline is seen from twice as far as everything else (see the fog chunk). */
+	private static readonly LANDMARK: IMaterialPatch = { key: 'landmark', fragmentHeader: '#define FOG_REACH 0.5' };
 
 	/** The seabed at the heart of the city. */
 	public readonly plaza: Vector3;
@@ -89,6 +92,7 @@ export default class AtlantisScene extends DiveScene {
 		this.buildCircle();
 		this.buildAvenues();
 		this.buildRuins();
+		this.buildSkyline();
 
 		this._light.position.copy(this.heart);
 
@@ -172,6 +176,37 @@ export default class AtlantisScene extends DiveScene {
 			color: '#a9b2ad',
 			patches: [triplanar(this.context.assets.texture('large_sandstone_blocks_01', 'diffuse'), 0.35), this._city]
 		};
+	}
+
+	/**
+	 * The city beyond the columns: temples standing on a wide ring between the avenues, dark shapes in
+	 * the murk until the waking light reaches them.
+	 */
+	private buildSkyline(): void {
+		const stone = this.stone();
+		// Facing the heart: each model's front is towards its own +Z
+		const facing = (angle: number): Euler => new Euler(0, -Math.PI / 2 - angle, 0);
+		const building = (name: ModelName, angle: number, distance: number, size: number): void => {
+			this.instancedModel(name, [{ position: this.onAvenue(angle, distance), scale: 1, rotation: facing(angle) }], {
+				size,
+				sink: 0.03,
+				material: { ...stone, patches: [...stone.patches, AtlantisScene.LANDMARK] }
+			});
+		};
+
+		const approach = AtlantisScene.AVENUES[0] ?? Math.PI / 2;
+		const behind = approach + Math.PI;
+
+		// Straight behind the heart, seen all the way down the approach: the great temple
+		building('greek_style_ancient_temple', behind, 80, 44);
+		// Closing the far end of the other two avenues
+		building('roman_greco_temple_aged', AtlantisScene.AVENUES[1] ?? behind, 76, 28);
+		building('roman_greco_temple_aged', AtlantisScene.AVENUES[2] ?? behind, 76, 28);
+		// Round shrines between them, a little further out, and two more flanking the approach
+		building('greek_tholos', behind - 0.55, 88, 15);
+		building('greek_tholos', behind + 0.55, 88, 15);
+		building('greek_tholos', approach - 1.3, 80, 13);
+		building('greek_tholos', approach + 1.3, 80, 13);
 	}
 
 	/** Mara's light: a crystal over a boulder pedestal, slow rings turning around it, a pillar of light above. */
