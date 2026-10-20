@@ -9,7 +9,9 @@
   Institution via Sketchfab, CC0.
 - **Soft Coral Set** by Kanna-nakajima, **Fan Coral Cluster Low** by Valery.Li, **Blue Sea Anemone L** by
   stefanorivera, **Claret Tall / Wiggle Seaweed** by Blaret, **Sea Turtle** by Eloiart, **Old Ruined Column** by
-  bsishir, **Half temple of Apollon (Portara)** by tsabou, **Elder Stones** by Cheyenne.Bockart — Sketchfab,
+  bsishir, **Half temple of Apollon (Portara)** by tsabou, **Elder Stones** by Cheyenne.Bockart,
+  **Greek style ancient temple** by MMC Works, **Greek Tholos** by Nicole (nicolioos), **Roman Greco Temple Aged** by
+  Shaz (shaz13) — Sketchfab,
   [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/). Simplified and compressed for the web.
 - **Barramundi Fish** by Microsoft — [Khronos glTF Sample Assets](https://github.com/KhronosGroup/glTF-Sample-Assets),
   CC0.

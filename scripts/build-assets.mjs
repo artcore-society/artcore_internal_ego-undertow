@@ -45,7 +45,18 @@ const MODEL_SETTINGS = {
 	// Temple and Atlantis
 	old_ruined_column: { ratio: 0.3, error: 0.02, textureSize: 1024 },
 	half_temple_of_apollon_portara: { ratio: 0.07, error: 0.02, textureSize: 1024 },
-	elder_stones: { ratio: 1, textureSize: 1024 }
+	elder_stones: { ratio: 1, textureSize: 1024 },
+	// Atlantis's skyline: only the buildings, without the scenery they were modelled in
+	// Thousands of minimal pieces (column flutes, tiles): ~58k triangles is its floor, one instance only
+	greek_style_ancient_temple: {
+		ratio: 0.25,
+		error: 0.02,
+		textureSize: 256,
+		isUntextured: true,
+		materials: ['Plaster17_3K', 'plaster-color', 'plaster-color-wall', 'roof-tiles', 'roof-center', 'ornament-facade', 'tiles-ornament']
+	},
+	greek_tholos: { ratio: 0.3, error: 0.01, textureSize: 512, isUntextured: true, materials: ['Column', 'material', 'Base'] },
+	roman_greco_temple_aged: { ratio: 0.6, error: 0.01, textureSize: 512, isUntextured: true }
 };
 
 /** Texture sets: colour at full size, data maps smaller (underwater haze hides their detail). */
@@ -66,11 +77,49 @@ async function size(path) {
 	return ((await stat(path)).size / 1e6).toFixed(2);
 }
 
+/** Drops every primitive whose material isn't listed: scenery that came with a model. */
+function keepMaterials(names) {
+	return (document) => {
+		for (const mesh of document.getRoot().listMeshes()) {
+			for (const primitive of mesh.listPrimitives()) {
+				if (!names.includes(primitive.getMaterial()?.getName() ?? '')) {
+					primitive.dispose();
+				}
+			}
+		}
+	};
+}
+
+/**
+ * Drops UVs, tangents and textures: for models that are textured in the scene instead (triplanar
+ * stone). UV seams also stop the simplifier from merging anything, so this is what lets it cut them.
+ */
+function untextured() {
+	return (document) => {
+		for (const primitive of document.getRoot().listMeshes().flatMap((mesh) => mesh.listPrimitives())) {
+			for (const semantic of primitive.listSemantics()) {
+				if (semantic.startsWith('TEXCOORD_') || semantic === 'TANGENT') {
+					primitive.setAttribute(semantic, null);
+				}
+			}
+		}
+
+		document.getRoot().listTextures().forEach((texture) => texture.dispose());
+	};
+}
+
+/** `yarn assets:build [model ...]`: only the named models (and no textures), or everything. */
+const only = process.argv.slice(2);
+
 async function buildModels() {
 	const outDir = join(OUTPUT_DIR, 'models');
 	await mkdir(outDir, { recursive: true });
 
 	for (const [name, settings] of Object.entries(MODEL_SETTINGS)) {
+		if (only.length && !only.includes(name)) {
+			continue;
+		}
+
 		const folder = join(SOURCE_DIR, 'models', name);
 		const source = (await readdir(folder)).find((file) => file.endsWith('.gltf') || file.endsWith('.glb'));
 		const document = await io.read(join(folder, source));
@@ -81,6 +130,8 @@ async function buildModels() {
 			: [flatten(), joinMeshes(), weld(), simplify({ simplifier: MeshoptSimplifier, ratio: settings.ratio, error: settings.error ?? 0.001 })];
 
 		await document.transform(
+			...(settings.materials ? [keepMaterials(settings.materials)] : []),
+			...(settings.isUntextured ? [untextured()] : []),
 			dedup(),
 			...geometry,
 			resample(),
@@ -117,4 +168,7 @@ async function buildTextures() {
 }
 
 await buildModels();
-await buildTextures();
+
+if (!only.length) {
+	await buildTextures();
+}

@@ -45,7 +45,10 @@ export const MANUAL_MODELS = {
 	sea_turtle: { url: 'https://sketchfab.com/3d-models/23dcb315dea44f5082b020b04710bd31', author: 'Eloiart', license: 'CC-BY-4.0' },
 	old_ruined_column: { url: 'https://sketchfab.com/3d-models/6d0f71e5b9f44505b90392e332f38b1e', author: 'bsishir (CadmiumCoffee)', license: 'CC-BY-4.0' },
 	half_temple_of_apollon_portara: { url: 'https://sketchfab.com/3d-models/0d54b70cf8c842aaa7f7d6ac41d56cff', author: 'tsabou (Georgios Tsampounaris)', license: 'CC-BY-4.0' },
-	elder_stones: { url: 'https://sketchfab.com/3d-models/aa44e2d042e44238acd25c1a5e95b22c', author: 'Cheyenne.Bockart', license: 'CC-BY-4.0' }
+	elder_stones: { url: 'https://sketchfab.com/3d-models/aa44e2d042e44238acd25c1a5e95b22c', author: 'Cheyenne.Bockart', license: 'CC-BY-4.0' },
+	greek_style_ancient_temple: { url: 'https://sketchfab.com/3d-models/b3445beab77142eb888085033a4db42f', author: 'MMC Works (mmcworks)', license: 'CC-BY-4.0' },
+	greek_tholos: { url: 'https://sketchfab.com/3d-models/b4fbe06384ba439e93643fc8818e5da4', author: 'Nicole (nicolioos)', license: 'CC-BY-4.0' },
+	roman_greco_temple_aged: { url: 'https://sketchfab.com/3d-models/f3e9bae12d83436bba2f7b24f03ecf0f', author: 'Shaz (shaz13)', license: 'CC-BY-4.0' }
 };
 
 export const SOURCE_DIR = 'assets-src';
