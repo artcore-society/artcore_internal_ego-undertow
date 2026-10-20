@@ -1,10 +1,13 @@
 #include ../includes/caustics.glsl
 #include ../includes/noise.glsl
+#include ../includes/sunset.glsl
 
 uniform float uTime;
 uniform vec3 uWaterColor;
 uniform vec3 uDownwellColor;
 uniform vec3 uSunDirection;
+// Where the sun sets once the storm has passed
+uniform vec3 uSunset;
 uniform float uFogDensity;
 uniform float uBrightness;
 uniform float uFlash;
@@ -68,10 +71,13 @@ void main() {
 	float sun = pow(max(dot(refracted, uSunDirection), 0.0), 24.0) * 0.6;
 	sky += vec3(0.9, 0.92, 0.95) * sun;
 
-	// After the storm: a warm sunset sky with a low sun shining down through the window
-	vec3 sunset = mix(vec3(1.0, 0.62, 0.36) * 2.2, vec3(0.55, 0.62, 0.9) * 1.5, smoothstep(0.7, 1.0, refracted.y));
-	float lowSun = pow(max(dot(refracted, normalize(uSunDirection + vec3(0.0, -0.6, 0.0))), 0.0), 40.0) * 8.0;
-	sky = mix(sky, sunset + vec3(1.0, 0.8, 0.55) * lowSun, uCalm);
+	// After the storm: the same sunset as above the water, squeezed into the window. Snell's window
+	// holds the whole sky: its rim is the horizon, its centre straight up
+	float elevation = clamp((refracted.y - 0.68) / 0.32, 0.0, 1.0) * 1.5708;
+	vec2 heading = normalize(refracted.xz + 1e-4);
+	vec3 skyDirection = vec3(heading * cos(elevation), sin(elevation)).xzy;
+	vec3 sunset = sunsetSky(skyDirection, uSunset, uTime) * 1.6;
+	sky = mix(sky, sunset, uCalm);
 	sky += vec3(0.85, 0.9, 1.0) * uFlash * 1.4;
 	sky += vec3(0.85, 0.9, 1.0) * bolt(refracted.xz) * uFlash * 22.0;
 

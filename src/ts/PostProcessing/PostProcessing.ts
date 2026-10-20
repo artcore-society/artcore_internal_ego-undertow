@@ -27,6 +27,7 @@ export default class PostProcessing implements IResizable, IEnvironmentAware, ID
 	private _air = 0;
 	private _isAbove = false;
 	private _wet = 0;
+	private _sheet = 1;
 
 	constructor(renderer: ExperienceRenderer, scene: Scene, camera: Camera) {
 		this._renderer = renderer;
@@ -65,6 +66,7 @@ export default class PostProcessing implements IResizable, IEnvironmentAware, ID
 	/** The camera has just broken the surface (or slipped back under): water runs off the mask. */
 	public splash(isAbove: boolean): void {
 		this._wet = isAbove ? 1 : 0;
+		this._sheet = isAbove ? 0 : 1;
 	}
 
 	/** 0..1 how black the screen is (the ending fades out). */
@@ -83,6 +85,8 @@ export default class PostProcessing implements IResizable, IEnvironmentAware, ID
 		this._underwater.hypoxia = this._hypoxia;
 		this._air = damp(this._air, this._isAbove ? 1 : 0, 4, frame.delta);
 		this._wet = Math.max(0, this._wet - frame.delta / 3.5);
+		this._sheet = Math.min(1, this._sheet + frame.delta / 0.9);
+		this._underwater.sheet = this._sheet;
 		this._underwater.air = this._air;
 		this._underwater.wet = this._wet;
 		this._underwater.time = frame.elapsed;

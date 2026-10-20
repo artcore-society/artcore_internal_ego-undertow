@@ -16,6 +16,7 @@ interface IUnderwaterUniformValues {
 	uLamp: number;
 	uAir: number;
 	uWet: number;
+	uSheet: number;
 }
 
 /** Refraction wobble, chromatic fringe, tinted mask vignette, hypoxia and blackout fade, grain: one pass. */
@@ -35,7 +36,8 @@ export default class UnderwaterPass extends ShaderPass {
 				uTint: { value: new Color() },
 				uLamp: { value: 0 },
 				uAir: { value: 0 },
-				uWet: { value: 0 }
+				uWet: { value: 0 },
+				uSheet: { value: 1 }
 			},
 			vertexShader,
 			fragmentShader
@@ -69,6 +71,11 @@ export default class UnderwaterPass extends ShaderPass {
 	/** 0..1 water still running down the mask after breaking the surface. */
 	public set wet(value: number) {
 		this._uniforms.uWet.value = value;
+	}
+
+	/** 0..1 how far the sheet of water has drained off the mask after breaking the surface. */
+	public set sheet(value: number) {
+		this._uniforms.uSheet.value = value;
 	}
 
 	public set fade(value: number) {

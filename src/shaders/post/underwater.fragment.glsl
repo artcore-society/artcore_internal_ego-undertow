@@ -13,6 +13,8 @@ uniform float uLamp;
 uniform float uAir;
 // Water still streaming down the mask after surfacing, fading 1 → 0
 uniform float uWet;
+// Breaking the surface: 0 = the mask is still covered by a sheet of water, 1 = it has drained off
+uniform float uSheet;
 
 varying vec2 vUv;
 
@@ -38,6 +40,13 @@ void main() {
 	float streak = smoothstep(0.0, 0.25, run) * (1.0 - smoothstep(0.3, 0.9, run)) * step(0.45, hash11(column + 3.0));
 	wobble += vec2(sin(vUv.x * 46.0 * 6.2832) * 0.004, 0.006) * streak * uWet;
 
+	// The sheet of water on the mask right after breaking through: it drains from the top down, its
+	// edge a bright wavering meniscus; below it the view is thick, bent and blue
+	float edge = 1.08 - uSheet * 1.25 + sin(vUv.x * 9.0 + uTime * 3.0) * 0.025 + sin(vUv.x * 23.0 - uTime * 5.0) * 0.012;
+	float covered = 1.0 - smoothstep(edge - 0.015, edge + 0.015, vUv.y);
+	covered *= step(0.001, 1.0 - uSheet);
+	wobble += vec2(sin(vUv.y * 30.0 + uTime * 6.0), cos(vUv.x * 26.0 + uTime * 5.0)) * 0.012 * covered;
+
 	vec2 uv = vUv + wobble;
 	float aberration = (0.0015 + uSpeed * 0.004) * radius;
 	vec3 color = vec3(
@@ -45,6 +54,16 @@ void main() {
 		texture2D(tDiffuse, uv).g,
 		texture2D(tDiffuse, uv - centred * aberration).b
 	);
+
+	// Under the sheet: smeared (a cheap blur), cooler and dimmer; the meniscus catches the light
+	if (covered > 0.0) {
+		vec3 smear = vec3(0.0);
+		for (int i = -2; i <= 2; i++) {
+			smear += texture2D(tDiffuse, uv + vec2(float(i) * 0.006, float(i) * 0.011)).rgb;
+		}
+		color = mix(color, smear * 0.2 * vec3(0.55, 0.78, 0.85), covered);
+	}
+	color += vec3(1.0, 0.85, 0.7) * exp(-pow((vUv.y - edge) / 0.006, 2.0)) * 0.35 * (1.0 - uSheet);
 
 	// Head lamp scattering in the murk: a soft cone of lit particles ahead, slightly below centre
 	vec2 beam = (vUv - vec2(0.53, 0.44)) * vec2(1.25, 1.0);

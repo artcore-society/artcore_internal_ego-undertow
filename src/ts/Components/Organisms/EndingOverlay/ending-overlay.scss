@@ -57,7 +57,7 @@
       max-inline-size: 44rem;
       text-align: center;
       // Waits until the camera has broken the surface and the view has settled on the sunset
-      animation: ending-title-in 2.4s 4.6s var(--transition-easing-in-out) both;
+      animation: ending-title-in 2.4s 6.6s var(--transition-easing-in-out) both;
 
       @include sass.reduced-motion {
         animation-duration: 0.6s;

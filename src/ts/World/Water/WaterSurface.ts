@@ -1,7 +1,7 @@
 import { BackSide, Color, Mesh, PlaneGeometry, ShaderMaterial, Vector2, Vector3, type Camera } from 'three';
 import vertexShader from '../../../shaders/water/surface.vertex.glsl';
 import fragmentShader from '../../../shaders/water/surface.fragment.glsl';
-import { SURFACE_Y } from '../../Config/world.ts';
+import { SUNSET_SUN, SURFACE_Y } from '../../Config/world.ts';
 import type WaterUniforms from './WaterUniforms.ts';
 import type { TypedUniforms } from '../../Helpers/uniforms.ts';
 import type IDisposable from '../../Contracts/IDisposable.ts';
@@ -14,6 +14,7 @@ interface ISurfaceUniformValues {
 	uWaterColor: Color;
 	uDownwellColor: Color;
 	uSunDirection: Vector3;
+	uSunset: Vector3;
 	uFogDensity: number;
 	uBrightness: number;
 	uFlash: number;
@@ -40,6 +41,7 @@ export default class WaterSurface
 			uWaterColor: { value: new Color() },
 			uDownwellColor: { value: new Color() },
 			uSunDirection: { value: new Vector3(0.25, 1, -0.35).normalize() },
+			uSunset: { value: SUNSET_SUN },
 			uFogDensity: { value: 0.02 },
 			uBrightness: { value: 1 },
 			uFlash: { value: 0 },

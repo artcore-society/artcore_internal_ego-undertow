@@ -47,7 +47,9 @@ export default class Experience implements IDisposable {
 	private static readonly WHALE_LEAD = 14;
 	private static readonly WHALE_RELEASE = 0.665;
 	/** Seconds from the credits up through the surface. */
-	private static readonly RISE_SECONDS = 5;
+	private static readonly RISE_SECONDS = 5.5;
+	/** Fraction of the rise spent gliding up under the surface before kicking through it. */
+	private static readonly BREACH_AT = 0.8;
 	/** Eye height above the water once afloat, metres. */
 	private static readonly AFLOAT_HEIGHT = 1.3;
 
@@ -396,18 +398,27 @@ export default class Experience implements IDisposable {
 
 		const { from, position, target } = this._rise;
 		const t = Math.min(1, this._surfacing / Experience.RISE_SECONDS);
-		const eased = t * t * (3 - 2 * t);
-		const x = from.x + SUNSET_SUN.x * eased * 4;
-		const z = from.z + SUNSET_SUN.z * eased * 4;
+		const x = from.x + SUNSET_SUN.x * Math.min(1, t * 1.2) * 4;
+		const z = from.z + SUNSET_SUN.z * Math.min(1, t * 1.2) * 4;
 		// Afloat, the diver rides the swell (a touch less than the water itself)
 		const afloat = (this._world?.sea.heightAt(x, z) ?? SURFACE_Y) * 0.8 + Experience.AFLOAT_HEIGHT;
+		const underneath = SURFACE_Y - 0.5;
 
-		position.set(x, from.y + (afloat - from.y) * eased, z);
+		if (t < Experience.BREACH_AT) {
+			// A slow glide up to just under the surface...
+			const glide = t / Experience.BREACH_AT;
+			position.set(x, from.y + (underneath - from.y) * glide * glide * (3 - 2 * glide), z);
+		} else {
+			// ...then a kick through it, bobbing up a little past where the body floats
+			const pop = Math.min(1, (t - Experience.BREACH_AT) / (1 - Experience.BREACH_AT));
+			const back = 1 + 2.4 * Math.pow(pop - 1, 3) + 1.4 * Math.pow(pop - 1, 2);
+			position.set(x, underneath + (afloat - underneath) * back, z);
+		}
 
-		// Looking up at the light while under; once out, the gaze settles on the horizon and the sun
-		const level = Math.min(1, Math.max(0, (position.y - SURFACE_Y + 1.5) / 3));
+		// Under, the gaze is lifted towards the bright window; out, it settles on the horizon and the sun
+		const level = Math.min(1, Math.max(0, (position.y - underneath) / 1.2));
 		target
-			.set(SUNSET_SUN.x, 1 - level * 0.96, SUNSET_SUN.z * (0.3 + level * 0.7))
+			.set(SUNSET_SUN.x, 0.42 - level * 0.45, SUNSET_SUN.z)
 			.normalize()
 			.add(position);
 
