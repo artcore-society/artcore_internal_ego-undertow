@@ -5,6 +5,5 @@ import { defineConfig } from 'vite';
 
 // https://vite.dev/config/
 export default defineConfig({
-	base: '/artcore_internal_ego-undertow/',
 	plugins: [vue(), glsl(), sassGlobImports()]
 });
