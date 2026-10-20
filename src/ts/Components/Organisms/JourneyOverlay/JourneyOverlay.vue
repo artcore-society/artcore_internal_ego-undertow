@@ -104,7 +104,7 @@ const showScrollHint = computed(() => !props.stop && !props.caption && props.tel
 		</Transition>
 
 		<Transition name="fade">
-			<ScrollHint v-if="showScrollHint" class="journey-overlay__hint" label="Scroll, ↓ or Z to dive" />
+			<ScrollHint v-if="showScrollHint" class="journey-overlay__hint" label="Scroll, ↑ or Z to ascend" />
 		</Transition>
 	</div>
 </template>
