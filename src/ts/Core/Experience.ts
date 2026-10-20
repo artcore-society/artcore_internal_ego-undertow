@@ -50,6 +50,8 @@ export default class Experience implements IDisposable {
 	private static readonly RISE_SECONDS = 5.5;
 	/** Fraction of the rise spent gliding up under the surface before kicking through it. */
 	private static readonly BREACH_AT = 0.8;
+	/** Fraction of the rise over which the gaze turns from where it was to the way up. */
+	private static readonly TURN_SHARE = 0.4;
 	/** Eye height above the water once afloat, metres. */
 	private static readonly AFLOAT_HEIGHT = 1.3;
 
@@ -86,7 +88,13 @@ export default class Experience implements IDisposable {
 	/** Seconds since surfacing began; negative while still under. */
 	private _surfacing = -1;
 	private _wasAbove = false;
-	private readonly _rise = { from: new Vector3(), position: new Vector3(), target: new Vector3() };
+	private readonly _rise = {
+		from: new Vector3(),
+		/** Where the camera was looking when the rise began, so the gaze turns from there. */
+		look: new Vector3(),
+		position: new Vector3(),
+		target: new Vector3()
+	};
 
 	constructor(canvas: HTMLCanvasElement) {
 		const container = canvas.parentElement ?? document.body;
@@ -235,6 +243,7 @@ export default class Experience implements IDisposable {
 
 		this._surfacing = 0;
 		this._rise.from.copy(camera.position);
+		camera.getWorldDirection(this._rise.look);
 		camera.isSurfacing = true;
 		camera.reachesHorizon = true;
 		this.setPhase(GamePhase.SURFACED);
@@ -396,7 +405,7 @@ export default class Experience implements IDisposable {
 	private rise(delta: number): IRailSample {
 		this._surfacing += delta;
 
-		const { from, position, target } = this._rise;
+		const { from, look, position, target } = this._rise;
 		const t = Math.min(1, this._surfacing / Experience.RISE_SECONDS);
 		const x = from.x + SUNSET_SUN.x * Math.min(1, t * 1.2) * 4;
 		const z = from.z + SUNSET_SUN.z * Math.min(1, t * 1.2) * 4;
@@ -417,8 +426,12 @@ export default class Experience implements IDisposable {
 
 		// Under, the gaze is lifted towards the bright window; out, it settles on the horizon and the sun
 		const level = Math.min(1, Math.max(0, (position.y - underneath) / 1.2));
+		// The first seconds turn the gaze over from wherever it was, so pressing Surface never snaps the view
+		const turn = Math.min(1, t / Experience.TURN_SHARE);
 		target
 			.set(SUNSET_SUN.x, 0.42 - level * 0.45, SUNSET_SUN.z)
+			.normalize()
+			.lerp(look, 1 - turn * turn * (3 - 2 * turn))
 			.normalize()
 			.add(position);
 
