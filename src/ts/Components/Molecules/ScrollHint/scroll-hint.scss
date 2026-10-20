@@ -28,13 +28,14 @@
     }
   }
 
+  // The light runs up the line, like the swipe up on a trackpad that carries the dive forward
   @keyframes scroll-hint {
     from {
-      transform: translateY(-100%);
+      transform: translateY(250%);
     }
 
     to {
-      transform: translateY(250%);
+      transform: translateY(-100%);
     }
   }
 }
