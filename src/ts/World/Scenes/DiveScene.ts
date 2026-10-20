@@ -1,19 +1,29 @@
-import { Euler, Group, Object3D, Vector3 } from 'three';
+import {
+	Box3,
+	Color,
+	Euler,
+	Group,
+	InstancedMesh,
+	Matrix4,
+	MeshStandardMaterial,
+	Object3D,
+	Quaternion,
+	Vector3
+} from 'three';
 import { canyonCentre, canyonWidthAt, floorAt, type ISceneConfig } from '../../Config/world.ts';
 import SeededRandom from '../../Helpers/SeededRandom.ts';
-import AirVent from '../Effects/AirVent.ts';
+import { patchMaterial, type IMaterialPatch } from '../../Helpers/MaterialPatch.ts';
 import FishSchool, { type IFishSchoolOptions } from '../Life/FishSchool.ts';
-import SphereCollider from '../Colliders/SphereCollider.ts';
 import type ShelterZone from '../Colliders/ShelterZone.ts';
-import { PropKind, type IPropPlacement } from '../Props/PropFactory.ts';
 import type ISceneContext from './ISceneContext.ts';
-import type ICollider from '../../Contracts/ICollider.ts';
 import type IDisposable from '../../Contracts/IDisposable.ts';
 import type IFrameContext from '../../Contracts/IFrameContext.ts';
+import type { ModelName } from '../../Config/assets.ts';
+import type { IPropPlacement } from '../Props/PropFactory.ts';
 
 /**
- * One place along the descent. Owns its props, life, colliders, air vents and shard spots,
- * and hides itself when the camera is too far away to see it.
+ * One place along the descent. Owns its props and life, and hides itself when the camera is too far
+ * away to see it.
  */
 export default abstract class DiveScene extends Group implements IDisposable {
 	/** Extra distance beyond the scene radius it stays drawn; past this the fog has swallowed it. */
@@ -21,16 +31,22 @@ export default abstract class DiveScene extends Group implements IDisposable {
 
 	public readonly config: ISceneConfig;
 	public readonly centre: Vector3;
-	public readonly colliders: ICollider[] = [];
-	public readonly shardSpots: Vector3[] = [];
-	public readonly vents: AirVent[] = [];
-	/** Enclosed spaces: inside them the sun is dimmed. */
-	protected readonly shelters: ShelterZone[] = [];
 
 	protected readonly context: ISceneContext;
 	protected readonly random: SeededRandom;
+	/** Enclosed spaces: inside them the sun is dimmed. */
+	protected readonly shelters: ShelterZone[] = [];
+
+	/** Places nothing may be scattered into (a hull, a building), horizontally. */
+	protected readonly keepClear: { readonly centre: Vector3; readonly radius: number }[] = [];
 
 	private readonly _disposables: IDisposable[] = [];
+	/** Instanced props big enough to block the camera; cleared off its path once the path is known. */
+	private readonly _obstacles: {
+		readonly mesh: InstancedMesh;
+		readonly placements: readonly IPropPlacement[];
+		readonly size: number;
+	}[] = [];
 
 	protected constructor(config: ISceneConfig, context: ISceneContext, seed: number) {
 		super();
@@ -42,20 +58,42 @@ export default abstract class DiveScene extends Group implements IDisposable {
 		this.centre = new Vector3(canyonCentre(config.z), floorAt(config.z), config.z);
 	}
 
-	/** 0..1 how enclosed a point is (inside a hull or a temple); dims sunlight there. */
 	public shelterAt(point: Vector3): number {
 		return this.shelters.reduce((cover, zone) => Math.max(cover, zone.coverAt(point)), 0);
 	}
 
-	public abstract update(frame: IFrameContext, diver: Vector3): void;
+	public abstract update(frame: IFrameContext): void;
 
 	public cull(camera: Vector3): void {
 		this.visible = camera.distanceTo(this.centre) < this.config.radius + DiveScene.DRAW_MARGIN;
 	}
 
+	/**
+	 * Hides every obstacle the camera would pass through.
+	 * @param path points along the camera's way, a few metres apart
+	 * @param clearance metres kept free around the camera
+	 */
+	public clearPath(path: readonly Vector3[], clearance: number): void {
+		const matrix = new Matrix4();
+		const hidden = new Matrix4().makeScale(0, 0, 0);
+
+		for (const { mesh, placements, size } of this._obstacles) {
+			placements.forEach((placement, index) => {
+				const scale = typeof placement.scale === 'number' ? placement.scale : placement.scale.x;
+				const reach = clearance + scale * size * 0.5;
+
+				if (path.some((point) => point.distanceToSquared(placement.position) < reach * reach)) {
+					mesh.getMatrixAt(index, matrix);
+					mesh.setMatrixAt(index, hidden);
+				}
+			});
+
+			mesh.instanceMatrix.needsUpdate = true;
+		}
+	}
+
 	public override dispose(): void {
 		this._disposables.forEach((disposable) => disposable.dispose());
-		this.vents.forEach((vent) => vent.dispose());
 		super.dispose();
 	}
 
@@ -83,7 +121,9 @@ export default abstract class DiveScene extends Group implements IDisposable {
 			const width = canyonWidthAt(z) * keepOff;
 			const x = canyonCentre(z) + this.random.range(-width, width);
 
-			if (Math.hypot(x - this.centre.x, z - this.centre.z) <= radius) {
+			const isClear = this.keepClear.every((zone) => Math.hypot(x - zone.centre.x, z - zone.centre.z) > zone.radius);
+
+			if (isClear && Math.hypot(x - this.centre.x, z - this.centre.z) <= radius) {
 				points.push(this.ground(x, z, lift));
 			}
 		}
@@ -113,39 +153,163 @@ export default abstract class DiveScene extends Group implements IDisposable {
 		});
 	}
 
-	/** Rocks that the diver bumps into. */
-	protected rocks(count: number, radius: number, minScale: number, maxScale: number, colors: readonly string[]): void {
-		const placements = this.placements(this.scatter(count, radius, -0.4), minScale, maxScale, colors);
+	/**
+	 * A glTF model instanced at many placements: one draw call per mesh of the model.
+	 * Placements are grounded: the model's base is set on the given point and sunk a little into the
+	 * sand, so nothing floats on a slope.
+	 * @param options.size model size in metres at scale 1 (the longest side is normalised to this)
+	 * @param options.sink fraction of the height pushed into the ground
+	 * @param options.isObstacle the camera path is cleared of these
+	 * @param options.material own copies of the model's materials, tinted and/or extra patches
+	 * @returns the materials used, e.g. to make them glow later
+	 */
+	protected instancedModel(
+		name: ModelName,
+		placements: readonly IPropPlacement[],
+		options: {
+			readonly size?: number;
+			readonly sink?: number;
+			readonly isObstacle?: boolean;
+			/** Lying on its side (rotated 90° about X): rests on its flank instead of its base. */
+			readonly isLying?: boolean;
+			readonly material?: { readonly color?: string; readonly patches?: readonly IMaterialPatch[] };
+		} = {}
+	): MeshStandardMaterial[] {
+		const materials: MeshStandardMaterial[] = [];
 
-		this.add(this.context.props.instanced(PropKind.ROCK, placements, '#6b6f6a'));
+		if (placements.length === 0) {
+			return materials;
+		}
 
-		placements.forEach(({ position, scale }) => {
-			const size = typeof scale === 'number' ? scale : scale.x;
-
-			if (size > 1.4) {
-				this.colliders.push(new SphereCollider(position, size * 0.85));
-			}
+		const parts = this.context.assets.parts(name);
+		const bounds = new Box3();
+		parts.forEach((part) => {
+			part.geometry.computeBoundingBox();
+			bounds.union(part.geometry.boundingBox ?? new Box3());
 		});
+
+		const dimensions = bounds.getSize(new Vector3());
+		const normalise =
+			(options.size ?? Math.max(dimensions.x, dimensions.y, dimensions.z)) /
+			Math.max(dimensions.x, dimensions.y, dimensions.z);
+		const sink = options.sink ?? 0.15;
+		const matrix = new Matrix4();
+		const rotation = new Quaternion();
+		const scale = new Vector3();
+		const position = new Vector3();
+		const tint = new Color();
+
+		const grounded = placements.map((placement) => {
+			const factor = typeof placement.scale === 'number' ? placement.scale : placement.scale.y;
+			position.copy(placement.position);
+
+			if (options.isLying) {
+				// On its side the model's thickness is what touches the ground
+				const radius = (Math.max(dimensions.x, dimensions.z) / 2) * normalise * factor;
+				position.y += radius * (1 - sink);
+			} else {
+				const height = dimensions.y * normalise * factor;
+				position.y += -bounds.min.y * normalise * factor - height * sink;
+			}
+
+			return { ...placement, position: position.clone() };
+		});
+
+		for (const part of parts) {
+			const material = options.material
+				? this.ownMaterial(part.material as MeshStandardMaterial, options.material)
+				: part.material;
+			const mesh = new InstancedMesh(part.geometry, material, grounded.length);
+			materials.push(material as MeshStandardMaterial);
+
+			grounded.forEach((placement, index) => {
+				rotation.setFromEuler(placement.rotation ?? new Euler());
+				scale
+					.copy(typeof placement.scale === 'number' ? new Vector3().setScalar(placement.scale) : placement.scale)
+					.multiplyScalar(normalise);
+				mesh.setMatrixAt(index, matrix.compose(placement.position, rotation, scale));
+
+				if (placement.color) {
+					mesh.setColorAt(index, tint.set(placement.color));
+				}
+			});
+
+			mesh.computeBoundingSphere();
+			mesh.matrixAutoUpdate = false;
+			this._disposables.push({ dispose: () => part.geometry.dispose() });
+			this.add(mesh);
+
+			if (options.isObstacle) {
+				this._obstacles.push({ mesh, placements: grounded, size: Math.max(dimensions.x, dimensions.z) * normalise });
+			}
+		}
+
+		return materials;
+	}
+
+	/** A scene-owned copy of a model material (a clone loses its shader patches, so they're applied again). */
+	private ownMaterial(
+		source: MeshStandardMaterial,
+		options: { readonly color?: string; readonly patches?: readonly IMaterialPatch[] }
+	): MeshStandardMaterial {
+		const material = source.clone();
+
+		if (options.color) {
+			material.color.set(options.color);
+		}
+
+		patchMaterial(material, this.context.water.caustics, ...(options.patches ?? []));
+		this._disposables.push(material);
+
+		return material;
+	}
+
+	/** A single copy of a model, scaled so its longest side is `size` metres, resting its base at `position`. */
+	protected placeModel(name: ModelName, position: Vector3, size: number, rotation = new Euler()): Object3D {
+		const model = this.context.assets.model(name);
+		const box = new Box3().setFromObject(model);
+		const dimensions = box.getSize(new Vector3());
+		const scale = size / Math.max(dimensions.x, dimensions.y, dimensions.z);
+
+		model.scale.setScalar(scale);
+		model.rotation.copy(rotation);
+		model.position.copy(position).sub(new Vector3(0, box.min.y * scale, 0));
+		this.add(model);
+
+		return model;
 	}
 
 	protected school(centre: Vector3, options: IFishSchoolOptions): FishSchool {
-		const school = this.own(
-			new FishSchool(this.context.water, this.context.patches, this.context.fishGeometry, options)
-		);
+		const school = this.own(new FishSchool(this.context.water, this.context.patches, this.context.fish, options));
 		school.position.copy(centre);
 
 		return school;
 	}
 
-	protected vent(position: Vector3, height: number): AirVent {
-		const vent = new AirVent(this.context.water, position, height, this.vents.length * 13 + 5);
-		this.vents.push(vent);
-		this.add(vent);
-
-		return vent;
+	/** A few big, slow fish patrolling wide circles: something large is always moving out in the murk. */
+	protected predators(centre: Vector3, count: number, radius: number, seed: number): void {
+		this.school(centre, {
+			count,
+			radius,
+			height: 6,
+			speed: 0.05,
+			length: 2.6,
+			colors: ['#7d8a90', '#5f6b70'],
+			seed
+		});
 	}
 
-	protected updateVents(elapsed: number): void {
-		this.vents.forEach((vent) => vent.update(elapsed));
+	/** Lanternfish: a swarm of tiny glowing fish for the dark. */
+	protected lanternfish(centre: Vector3, count: number, glow: string, seed: number): void {
+		this.school(centre, {
+			count,
+			radius: 7,
+			height: 5,
+			speed: 0.45,
+			length: 0.16,
+			colors: ['#1a2a33'],
+			glow,
+			seed
+		});
 	}
 }

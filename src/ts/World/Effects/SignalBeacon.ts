@@ -11,7 +11,7 @@ import {
 } from 'three';
 import type IDisposable from '../../Contracts/IDisposable.ts';
 
-/** Marks where Mara's signal is coming from: a glowing core with pulses that face the camera. */
+/** Marks a stop's hotspot in the world: a glowing core with pulses that face the camera. */
 export default class SignalBeacon extends Group implements IDisposable {
 	private static readonly RING_COUNT = 3;
 	private static readonly PULSE_SECONDS = 2.4;
@@ -66,8 +66,8 @@ export default class SignalBeacon extends Group implements IDisposable {
 		}
 
 		const distance = camera.position.distanceTo(this.position);
-		// Keep the beacon readable from afar without filling the screen up close
-		const scale = Math.max(1, distance * 0.035);
+		// Readable from afar, a small spark up close: never fills the screen
+		const scale = Math.min(3, Math.max(0.18, distance * 0.03));
 
 		this._core.scale.setScalar(scale * (0.9 + Math.sin(elapsed * 4) * 0.1));
 		this._core.material.opacity = this._intensity;
@@ -76,8 +76,8 @@ export default class SignalBeacon extends Group implements IDisposable {
 			const t = (((elapsed / SignalBeacon.PULSE_SECONDS + index / SignalBeacon.RING_COUNT) % 1) + 1) % 1;
 
 			ring.quaternion.copy(camera.quaternion);
-			ring.scale.setScalar(scale * (0.8 + t * 5));
-			ring.material.opacity = (1 - t) * 0.8 * this._intensity;
+			ring.scale.setScalar(scale * (0.6 + t * 2.4));
+			ring.material.opacity = (1 - t) * 0.55 * this._intensity;
 		});
 	}
 

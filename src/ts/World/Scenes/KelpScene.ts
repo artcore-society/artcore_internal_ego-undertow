@@ -1,51 +1,60 @@
 import DiveScene from './DiveScene.ts';
 import KelpForest from '../Life/KelpForest.ts';
-import { PropKind } from '../Props/PropFactory.ts';
 import { SCENES, SURFACE_Y } from '../../Config/world.ts';
 import { SceneId } from '../../Enums/SceneId.ts';
 import type ISceneContext from './ISceneContext.ts';
-import type IFrameContext from '../../Contracts/IFrameContext.ts';
 
-/** II. Kelp Cathedral: tall swaying stalks, god rays falling between them, silver schools. */
+/** II. Kelp Cathedral: towering stalks with god rays falling between them, seaweed and anemones below. */
 export default class KelpScene extends DiveScene {
+	private static readonly HEIGHT = 20;
+
 	constructor(context: ISceneContext) {
 		super(SCENES[SceneId.KELP], context, 23);
 
-		const stalks = this.scatter(420, 105, -0.3, 0.46).map((position) => ({
+		const stalks = this.scatter(260, 105, -0.3, 0.46).map((position) => ({
 			position,
 			// Reach for the light, but stay under the surface
-			height: Math.min(SURFACE_Y - 4 - position.y, this.random.range(12, 26))
+			scale: Math.min((SURFACE_Y - 3 - position.y) / KelpScene.HEIGHT, this.random.range(0.65, 1.15))
 		}));
 
-		this.own(new KelpForest(context.water, context.patches, stalks, 9));
-		this.rocks(40, 100, 1, 5, ['#5f6763', '#6f6a5c']);
-		this.add(
-			context.props.instanced(
-				PropKind.ANEMONE,
-				this.placements(this.scatter(40, 90), 0.6, 1.2, ['#ffb3c7', '#f6e27f']),
-				'#ffb3c7'
-			)
-		);
+		this.own(new KelpForest(context.water, context.patches, stalks, KelpScene.HEIGHT, 9));
+		this.instancedModel('claret_tall_seaweed', this.placements(this.scatter(40, 100), 0.9, 1.6), {
+			size: 2.4,
+			sink: 0.02
+		});
+		this.instancedModel('claret_wiggle_seaweed', this.placements(this.scatter(40, 100), 0.8, 1.4), {
+			size: 1.8,
+			sink: 0.02
+		});
+		this.instancedModel('blue_sea_anemone_l', this.placements(this.scatter(6, 90), 0.8, 1.3), { size: 1, sink: 0.2 });
+		this.instancedModel('rock_moss_set_01', this.placements(this.scatter(18, 100), 1.5, 3.5), {
+			sink: 0.3,
+			isObstacle: true
+		});
+		this.instancedModel('rock_moss_set_02', this.placements(this.scatter(10, 100), 2, 4), {
+			sink: 0.3,
+			isObstacle: true
+		});
+		this.instancedModel('lambis_shell', this.placements(this.scatter(14, 90), 0.18, 0.3), { sink: 0.2 });
 
-		this.scatter(3, 70).forEach((spot, index) => {
-			spot.y += this.random.range(5, 10);
+		this.scatter(5, 70).forEach((spot, index) => {
+			spot.y += this.random.range(5, 14);
 			this.school(spot, {
-				count: 110,
-				radius: this.random.range(6, 10),
+				count: index < 2 ? 140 : 80,
+				radius: this.random.range(6, 11),
 				height: 4,
-				speed: 0.3,
-				scale: 0.5,
-				colors: ['#c9d6dc', '#9fb3bd', '#e4ecef'],
+				speed: 0.25,
+				length: index < 2 ? 0.3 : 0.45,
+				colors: ['#ffffff', '#dfe7ea'],
 				seed: 200 + index
 			});
 		});
 
-		// Mara's trail of light, woven between the stalks
-		this.shardSpots.push(...this.scatter(6, 85, 0, 0.35).map((spot) => spot.setY(spot.y + this.random.range(3, 8))));
-		this.vent(this.ground(this.centre.x - 14, this.centre.z + 20), 18);
+		this.predators(this.centre.clone().setY(this.centre.y + 9), 2, 34, 240);
 	}
 
-	public override update(frame: IFrameContext): void {
-		this.updateVents(frame.elapsed);
+	/** Everything here moves on the GPU. */
+	public override update(): void {
+		// Nothing to advance on the CPU
 	}
 }

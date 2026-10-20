@@ -5,7 +5,7 @@
 	vec3 swayRoot = vec3(0.0);
 #endif
 
-float swayHeight = clamp(position.y, 0.0, 1.0);
+float swayHeight = clamp(position.y / uSwayHeight, 0.0, 1.0);
 float swayPhase = uTime * 0.7 + swayRoot.x * 0.11 + swayRoot.z * 0.07;
 float swayBend = swayHeight * swayHeight * uSwayAmount;
 transformed.x += sin(swayPhase + swayHeight * 2.2) * swayBend;

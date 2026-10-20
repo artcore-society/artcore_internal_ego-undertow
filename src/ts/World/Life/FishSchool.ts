@@ -1,21 +1,19 @@
 import {
-	BufferGeometry,
+	Box3,
 	Color,
-	ConeGeometry,
 	InstancedBufferAttribute,
 	InstancedBufferGeometry,
 	Mesh,
-	MeshLambertMaterial,
-	SphereGeometry,
+	MeshStandardMaterial,
 	Sphere,
 	Vector3
 } from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { patchMaterial } from '../../Helpers/MaterialPatch.ts';
 import SeededRandom from '../../Helpers/SeededRandom.ts';
 import type LifePatches from './LifePatches.ts';
 import type WaterUniforms from '../Water/WaterUniforms.ts';
 import type IDisposable from '../../Contracts/IDisposable.ts';
+import type { IModelPart } from '../../Assets/AssetLibrary.ts';
 
 export interface IFishSchoolOptions {
 	readonly count: number;
@@ -25,26 +23,43 @@ export interface IFishSchoolOptions {
 	readonly height: number;
 	/** Average angular speed in radians per second. */
 	readonly speed: number;
-	readonly scale: number;
+	/** Body length in metres. */
+	readonly length: number;
+	/** Tints multiplied over the fish texture; white keeps it as scanned. */
 	readonly colors: readonly string[];
 	readonly seed: number;
+	/** Bioluminescence: the fish emit this colour (bright enough to bloom). */
+	readonly glow?: string;
 }
 
-/** A school of fish in one draw call: every fish swims its own orbit in the vertex shader. */
-export default class FishSchool extends Mesh<InstancedBufferGeometry, MeshLambertMaterial> implements IDisposable {
-	/** Low-poly fish facing -Z, tail at +Z. */
-	public static createGeometry(): BufferGeometry {
-		const body = new SphereGeometry(0.5, 8, 6).scale(0.22, 0.42, 1);
-		const tail = new ConeGeometry(0.28, 0.4, 4)
-			.rotateX(-Math.PI / 2)
-			.scale(0.12, 1, 1)
-			.translate(0, 0, 0.62);
+/**
+ * A school of fish in one draw call: one textured fish model, instanced, each swimming its own orbit
+ * in the vertex shader. Build the template once with `FishSchool.template()` and share it.
+ */
+export default class FishSchool extends Mesh<InstancedBufferGeometry, MeshStandardMaterial> implements IDisposable {
+	/**
+	 * Normalises a fish model for the swim shader: centred, 1 unit long, head towards -Z, tail at +Z.
+	 * @param headTowardsPositiveZ how the source model is oriented
+	 */
+	public static template(part: IModelPart, headTowardsPositiveZ: boolean): IModelPart {
+		const geometry = part.geometry.clone();
+		geometry.computeBoundingBox();
+		const box = geometry.boundingBox ?? new Box3();
+		const centre = box.getCenter(new Vector3());
+		const size = box.getSize(new Vector3());
 
-		return mergeGeometries([body.toNonIndexed(), tail.toNonIndexed()]) ?? body;
+		geometry.translate(-centre.x, -centre.y, -centre.z);
+		geometry.scale(1 / size.z, 1 / size.z, 1 / size.z);
+
+		if (headTowardsPositiveZ) {
+			geometry.rotateY(Math.PI);
+		}
+
+		return { geometry, material: part.material };
 	}
 
-	constructor(water: WaterUniforms, patches: LifePatches, fishGeometry: BufferGeometry, options: IFishSchoolOptions) {
-		const geometry = new InstancedBufferGeometry().copy(fishGeometry as InstancedBufferGeometry);
+	constructor(water: WaterUniforms, patches: LifePatches, template: IModelPart, options: IFishSchoolOptions) {
+		const geometry = new InstancedBufferGeometry().copy(template.geometry as InstancedBufferGeometry);
 		const random = new SeededRandom(options.seed);
 		const orbits = new Float32Array(options.count * 4);
 		const scales = new Float32Array(options.count);
@@ -62,8 +77,8 @@ export default class FishSchool extends Mesh<InstancedBufferGeometry, MeshLamber
 				],
 				i * 4
 			);
-			scales[i] = options.scale * random.range(0.75, 1.25);
-			color.set(options.colors[i % options.colors.length] ?? '#ffffff').offsetHSL(0, 0, random.range(-0.05, 0.05));
+			scales[i] = options.length * random.range(0.8, 1.2);
+			color.set(options.colors[i % options.colors.length] ?? '#ffffff').offsetHSL(0, 0, random.range(-0.04, 0.04));
 			color.toArray(colors, i * 3);
 		}
 
@@ -74,7 +89,15 @@ export default class FishSchool extends Mesh<InstancedBufferGeometry, MeshLamber
 		// Culling must cover the whole orbit, not the single fish template
 		geometry.boundingSphere = new Sphere(new Vector3(), options.radius * 1.4 + options.height + 2);
 
-		super(geometry, patchMaterial(new MeshLambertMaterial({ vertexColors: true }), patches.fish, water.caustics));
+		const material = (template.material as MeshStandardMaterial).clone();
+		material.vertexColors = true;
+
+		if (options.glow) {
+			material.emissive = new Color(options.glow);
+			material.emissiveIntensity = 2.5;
+		}
+
+		super(geometry, patchMaterial(material, patches.fish, water.caustics));
 	}
 
 	public override dispose(): void {

@@ -1,4 +1,4 @@
-import { CatmullRomCurve3, Vector3 } from 'three';
+import { Vector3 } from 'three';
 import DiveScene from './DiveScene.ts';
 import Whale from '../Life/Whale.ts';
 import JellyfishBloom from '../Life/JellyfishBloom.ts';
@@ -7,17 +7,17 @@ import { SceneId } from '../../Enums/SceneId.ts';
 import type ISceneContext from './ISceneContext.ts';
 import type IFrameContext from '../../Contracts/IFrameContext.ts';
 
-/** IV. The Whale Road: the canyon falls away into blue nothing. A humpback circles, then leads you down. */
+/** IV. The Whale Road: the canyon falls away into blue nothing. A humpback circles, then leads the way down. */
 export default class PassageScene extends DiveScene {
 	/** The whale's way down, from the ledge to the temple: [z, y]. */
 	private static readonly ROUTE: readonly (readonly [number, number])[] = [
-		[-448, -52],
-		[-480, -70],
-		[-510, -94],
-		[-540, -117],
-		[-575, -136],
-		[-612, -149],
-		[-650, -154]
+		[-462, -60],
+		[-495, -78],
+		[-525, -100],
+		[-555, -120],
+		[-590, -138],
+		[-625, -150],
+		[-660, -156]
 	];
 
 	public readonly whale: Whale;
@@ -28,35 +28,36 @@ export default class PassageScene extends DiveScene {
 		super(SCENES[SceneId.PASSAGE], context, 53);
 
 		this.route = PassageScene.ROUTE.map(([z, y]) => new Vector3(canyonCentre(z), y, z));
-		this.ledge = this.ground(canyonCentre(-440), -440, 2.5);
+		this.ledge = this.ground(canyonCentre(-440), -440, 3);
+
+		const [whale] = context.assets.parts('humpback_whale');
+
+		if (!whale) {
+			throw new Error('The whale model has no mesh');
+		}
 
 		this.whale = this.own(
-			new Whale(context.water, context.patches, new Vector3(canyonCentre(-480), -55, -480), 25, this.route)
+			new Whale(context.water, context.patches, whale, new Vector3(canyonCentre(-490), -58, -490), 24, this.route)
 		);
-		this.whale.position.set(canyonCentre(-480) + 25, -55, -480);
 
-		this.own(new JellyfishBloom(context.patches, this.drift(45), '#9d7bff'));
-		this.own(new JellyfishBloom(context.patches, this.drift(35), '#5ff7ea'));
-		this.rocks(26, 130, 2, 6, ['#3e4a52', '#46504f']);
-
-		const curve = new CatmullRomCurve3([...this.route]);
-		[0.15, 0.32, 0.5, 0.68, 0.84].forEach((t, index) => {
-			this.shardSpots.push(curve.getPointAt(t).add(new Vector3(index % 2 ? 4 : -4, 2, 0)));
+		this.own(new JellyfishBloom(context.water, this.drift(40), '#9d7bff', 61));
+		this.own(new JellyfishBloom(context.water, this.drift(30), '#5ff7ea', 62));
+		this.instancedModel('rock_moss_set_02', this.placements(this.scatter(14, 130, 0, 0.5), 2.5, 6), {
+			sink: 0.35,
+			isObstacle: true
+		});
+		this.instancedModel('rock_moss_set_01', this.placements(this.scatter(18, 130, 0, 0.5), 2, 4), {
+			sink: 0.35,
+			isObstacle: true
 		});
 
-		this.vent(
-			this.ledge
-				.clone()
-				.setY(this.ledge.y - 2.5)
-				.setX(this.ledge.x + 8),
-			16
-		);
-		this.vent(this.ground(canyonCentre(-585) + 14, -585), 14);
+		this.lanternfish(new Vector3(canyonCentre(-520) - 12, -95, -520), 140, '#5ef2e0', 501);
+		this.lanternfish(new Vector3(canyonCentre(-600) + 10, -135, -600), 140, '#9d7bff', 502);
+		this.predators(new Vector3(canyonCentre(-470), -70, -470), 2, 40, 503);
 	}
 
-	public override update(frame: IFrameContext, diver: Vector3): void {
-		this.whale.update(diver, frame.elapsed, frame.delta);
-		this.updateVents(frame.elapsed);
+	public override update(frame: IFrameContext): void {
+		this.whale.update(frame.elapsed, frame.delta);
 	}
 
 	/** Points hanging in the open water of the drop. */

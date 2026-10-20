@@ -34,11 +34,14 @@ export default class LifePatches {
 		};
 	}
 
-	/** @param amount metres the tip moves */
-	public sway(amount: number): IMaterialPatch {
+	/**
+	 * @param amount metres the tip moves
+	 * @param height model-space height of the plant (its tip sways the most)
+	 */
+	public sway(amount: number, height: number): IMaterialPatch {
 		return {
 			key: 'sway',
-			uniforms: { ...this._water.timeUniforms, uSwayAmount: { value: amount } },
+			uniforms: { ...this._water.timeUniforms, uSwayAmount: { value: amount }, uSwayHeight: { value: height } },
 			vertexHeader: swayHeader,
 			vertexTransform: swayVertex
 		};

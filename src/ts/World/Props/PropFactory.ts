@@ -6,12 +6,13 @@ import {
 	IcosahedronGeometry,
 	InstancedMesh,
 	Matrix4,
-	MeshLambertMaterial,
+	MeshStandardMaterial,
 	Quaternion,
 	Euler,
 	SphereGeometry,
 	TorusGeometry,
-	Vector3
+	Vector3,
+	type Texture
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { patchMaterial, type IMaterialPatch } from '../../Helpers/MaterialPatch.ts';
@@ -49,7 +50,7 @@ export type PropKind = (typeof PropKind)[keyof typeof PropKind];
 export default class PropFactory implements IDisposable {
 	private readonly _water: WaterUniforms;
 	private readonly _geometries = new Map<PropKind, BufferGeometry>();
-	private readonly _materials: MeshLambertMaterial[] = [];
+	private readonly _materials: MeshStandardMaterial[] = [];
 
 	constructor(water: WaterUniforms) {
 		this._water = water;
@@ -63,9 +64,15 @@ export default class PropFactory implements IDisposable {
 		kind: PropKind,
 		placements: readonly IPropPlacement[],
 		color: string,
+		options: { readonly map?: Texture; readonly roughness?: number } = {},
 		...patches: IMaterialPatch[]
 	): InstancedMesh {
-		const material = patchMaterial(new MeshLambertMaterial({ color: '#ffffff' }), ...patches, this._water.caustics);
+		// Caustics first: other patches may read its world-position varying
+		const material = patchMaterial(
+			new MeshStandardMaterial({ color: '#ffffff', roughness: options.roughness ?? 0.85, map: options.map ?? null }),
+			this._water.caustics,
+			...patches
+		);
 		this._materials.push(material);
 
 		const mesh = new InstancedMesh(this.geometry(kind), material, Math.max(1, placements.length));

@@ -1,187 +1,149 @@
-import {
-	BoxGeometry,
-	Color,
-	CylinderGeometry,
-	Euler,
-	Matrix4,
-	Mesh,
-	MeshBasicMaterial,
-	MeshLambertMaterial,
-	Vector3,
-	type BufferGeometry
-} from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { Box3, Color, Euler, Group, Mesh, MeshBasicMaterial, SphereGeometry, Vector3 } from 'three';
 import DiveScene from './DiveScene.ts';
-import BoxCollider from '../Colliders/BoxCollider.ts';
-import ShelterZone from '../Colliders/ShelterZone.ts';
-import { PropKind } from '../Props/PropFactory.ts';
-import { patchMaterial } from '../../Helpers/MaterialPatch.ts';
 import { SCENES } from '../../Config/world.ts';
 import { SceneId } from '../../Enums/SceneId.ts';
 import type ISceneContext from './ISceneContext.ts';
 import type IFrameContext from '../../Contracts/IFrameContext.ts';
 
-interface IPlate {
-	readonly centre: readonly [number, number, number];
-	readonly size: readonly [number, number, number];
-}
-
 /**
- * III. The Halcyon, Mara's research vessel, on its keel in the silt. The hull is open where the deck
- * collapsed and through a breach in the port side; her log glows in the deckhouse.
+ * III. An old galleon Mara studied for years, rolled onto its side in the silt, sails long gone.
+ * Her recorder lies in the sand by the hull, still blinking.
  */
 export default class WreckScene extends DiveScene {
-	private static readonly LENGTH = 32;
-	private static readonly WIDTH = 8;
-	private static readonly HEIGHT = 6;
+	private static readonly LENGTH = 30;
 	private static readonly YAW = 0.45;
+	private static readonly ROLL = 0.55;
 
-	public readonly log: Vector3;
+	/** Where the hull rests. */
+	public readonly origin: Vector3;
+	/** Mara's recorder: the second stop. */
+	public readonly recorder: Vector3;
 
-	private readonly _origin: Vector3;
+	private readonly _lamp: MeshBasicMaterial;
+	private readonly _lampGeometry = new SphereGeometry(0.06, 10, 8);
 	private readonly _up = new Vector3(0, 1, 0);
-	private readonly _logMaterial: MeshBasicMaterial;
-	private readonly _owned: (BufferGeometry | MeshLambertMaterial | MeshBasicMaterial)[] = [];
 
 	constructor(context: ISceneContext) {
 		super(SCENES[SceneId.WRECK], context, 37);
 
-		this._origin = this.ground(this.centre.x + 4, this.centre.z, -0.6);
-		this._logMaterial = new MeshBasicMaterial({ color: new Color('#8ffcff').multiplyScalar(3) });
+		this.origin = this.ground(this.centre.x + 4, this.centre.z);
+		// The hull lies across these circles: nothing may be scattered inside it
+		[-12, -4, 4, 12].forEach((along) => {
+			const [x, z] = this.local(0, along);
+			this.keepClear.push({ centre: new Vector3(x, this.origin.y, z), radius: 9 });
+		});
+		this.buildShip();
 
-		const { LENGTH: L, WIDTH: W, HEIGHT: H } = WreckScene;
-		const plates: IPlate[] = [
-			{ centre: [0, 0.2, 0], size: [W, 0.4, L] },
-			// Port side, breached between z 2..7
-			{ centre: [-W / 2, H / 2, -7], size: [0.35, H, 18] },
-			{ centre: [-W / 2, H / 2, 11.5], size: [0.35, H, 9] },
-			{ centre: [-W / 2, H * 0.85, 4.5], size: [0.35, H * 0.3, 5] },
-			{ centre: [W / 2, H / 2, 0], size: [0.35, H, L] },
-			{ centre: [0, H / 2, -L / 2], size: [W, H, 0.35] },
-			{ centre: [0, H / 2, L / 2], size: [W, H, 0.35] },
-			// Deck, collapsed amidships
-			{ centre: [0, H, -9], size: [W, 0.3, 14] },
-			{ centre: [0, H, 10], size: [W, 0.3, 12] },
-			// Deckhouse, with a doorway facing the bow
-			{ centre: [0, H + 2.5, 15.5], size: [W - 1, 5, 0.3] },
-			{ centre: [-(W / 2 - 0.5), H + 2.5, 11], size: [0.3, 5, 9] },
-			{ centre: [W / 2 - 0.5, H + 2.5, 11], size: [0.3, 5, 9] },
-			{ centre: [-2.6, H + 2.5, 6.5], size: [2, 5, 0.3] },
-			{ centre: [2.6, H + 2.5, 6.5], size: [2, 5, 0.3] },
-			{ centre: [0, H + 5, 11], size: [W - 1, 0.3, 9] },
-			// Chart table
-			{ centre: [0, H + 0.6, 13.4], size: [3, 1.2, 1.2] }
-		];
+		this.recorder = this.ground(...this.local(-9, 6), 0.05);
+		this.placeModel('vintage_radio_transceiver', this.recorder, 0.6, new Euler(0, 1.1, 0.12));
+		this._lamp = new MeshBasicMaterial({ color: new Color('#5ef2e0') });
 
-		this.buildHull(plates);
-		this.shelters.push(
-			new ShelterZone(this.toWorld(0, H / 2, 0), new Vector3(W, H, L), WreckScene.YAW),
-			new ShelterZone(this.toWorld(0, H + 2.5, 11), new Vector3(W - 1, 5, 9), WreckScene.YAW)
+		const lamp = new Mesh(this._lampGeometry, this._lamp);
+		lamp.position.copy(this.recorder).add(new Vector3(0.12, 0.38, 0.05));
+		this.add(lamp);
+
+		[
+			[-12, -8, 0.3],
+			[11, 13, 2.1],
+			[-14, 18, 4.2]
+		].forEach(([x, z, yaw]) => {
+			this.placeModel(
+				'cannon_01',
+				this.ground(...this.local(x ?? 0, z ?? 0), -0.25),
+				2.6,
+				new Euler(0.05, yaw ?? 0, 0.18)
+			);
+		});
+
+		this.instancedModel('rock_moss_set_01', this.placements(this.scatter(16, 80), 1.5, 4), {
+			sink: 0.3,
+			isObstacle: true
+		});
+		this.instancedModel('rock_moss_set_02', this.placements(this.scatter(6, 80), 2.5, 4.5), {
+			sink: 0.3,
+			isObstacle: true
+		});
+		this.instancedModel(
+			'acropora_cervicornis_detail_view',
+			this.placements(this.scatter(10, 70), 0.6, 1.2, ['#9a8a62', '#7f8c66']),
+			{
+				size: 1.4,
+				sink: 0.08
+			}
 		);
-		this.buildRigging();
+		this.instancedModel('fan_coral_cluster_low', this.placements(this.scatter(10, 70), 0.8, 1.3), {
+			size: 1.4,
+			sink: 0.05
+		});
+		this.instancedModel('lambis_shell', this.placements(this.scatter(14, 60), 0.18, 0.3), { sink: 0.2 });
 
-		this.log = this.toWorld(0, H + 1.45, 13.4);
-		const tablet = new BoxGeometry(0.7, 0.08, 0.5);
-		this._owned.push(tablet, this._logMaterial);
-		const logMesh = new Mesh(tablet, this._logMaterial);
-		logMesh.position.copy(this.log);
-		logMesh.rotation.y = WreckScene.YAW;
-		this.add(logMesh);
-
-		this.add(
-			context.props.instanced(
-				PropKind.ANEMONE,
-				[...Array(18).keys()].map((index) => ({
-					position: this.toWorld(
-						this.random.range(-3, 3),
-						H + 0.15,
-						index < 9 ? this.random.range(-15, -3) : this.random.range(5, 6)
-					),
-					scale: this.random.range(0.5, 1),
-					color: index % 2 ? '#ffcf7f' : '#ff9fd2'
-				})),
-				'#ff9fd2'
-			)
-		);
-		this.rocks(30, 80, 1, 4.5, ['#4f5552', '#5b5a52']);
-
-		const school = this.toWorld(0, H + 6, -4);
-		this.school(school, {
-			count: 26,
-			radius: 11,
+		this.school(this.origin.clone().add(new Vector3(0, 8, -4)), {
+			count: 40,
+			radius: 12,
 			height: 3,
 			speed: 0.14,
-			scale: 1.5,
-			colors: ['#8a9aa3', '#b4c0c6'],
+			length: 0.9,
+			colors: ['#b8c2c6', '#e2e8ea'],
 			seed: 301
 		});
 
-		this.shardSpots.push(
-			this.toWorld(0, 2, -8),
-			this.toWorld(0, 2, 11),
-			this.toWorld(-2, H + 1.6, 10),
-			this.toWorld(-7, 3, 4.5)
-		);
-		this.vent(this.toWorld(1.5, H + 0.2, 9.5), 4.4);
-		this.vent(this.ground(this.centre.x - 18, this.centre.z - 20), 22);
-	}
-
-	/** Breach in the port side, the way in for the story. */
-	public get breach(): Vector3 {
-		return this.toWorld(-WreckScene.WIDTH / 2 - 3, 2.5, 4.5);
+		this.school(this.origin.clone().add(new Vector3(-10, 14, 12)), {
+			count: 80,
+			radius: 9,
+			height: 4,
+			speed: 0.2,
+			length: 0.4,
+			colors: ['#9fb3bb', '#c7d3d8'],
+			seed: 302
+		});
+		// Something big circles the wreck
+		this.predators(this.origin.clone().add(new Vector3(0, 10, 0)), 3, 22, 303);
 	}
 
 	public override update(frame: IFrameContext): void {
-		this._logMaterial.color.setRGB(0.55, 0.99, 1).multiplyScalar(2.2 + Math.sin(frame.elapsed * 2.4) * 1.2);
-		this.updateVents(frame.elapsed);
+		this._lamp.color.setRGB(0.37, 0.95, 0.88).multiplyScalar(Math.sin(frame.elapsed * 2.6) > 0.2 ? 5 : 0.3);
 	}
 
 	public override dispose(): void {
 		super.dispose();
-		this._owned.forEach((item) => item.dispose());
+		this._lamp.dispose();
+		this._lampGeometry.dispose();
 	}
 
-	private toWorld(x: number, y: number, z: number): Vector3 {
-		return new Vector3(x, y, z).applyAxisAngle(this._up, WreckScene.YAW).add(this._origin);
+	/** A point in the wreck's frame (x across, z along the hull) to world x/z. */
+	private local(x: number, z: number): [number, number] {
+		const point = new Vector3(x, 0, z).applyAxisAngle(this._up, WreckScene.YAW);
+
+		return [this.origin.x + point.x, this.origin.z + point.z];
 	}
 
-	/** All plates merged into one mesh (one draw call), each with its own collider. */
-	private buildHull(plates: readonly IPlate[]): void {
-		const matrix = new Matrix4();
-		const parts = plates.map(({ centre, size }) => {
-			const [x, y, z] = centre;
-			const [sx, sy, sz] = size;
+	/** The galleon: sails removed, fitted to its length, rolled onto its side and sunk into the silt. */
+	private buildShip(): void {
+		const ship = this.context.assets.model('dutch_ship_medium');
 
-			this.colliders.push(new BoxCollider(this.toWorld(x, y, z), new Vector3(sx, sy, sz), WreckScene.YAW));
-
-			return new BoxGeometry(sx, sy, sz).applyMatrix4(matrix.makeTranslation(x, y, z));
+		ship.traverse((child) => {
+			if (child.name.toLowerCase().includes('sail')) {
+				child.visible = false;
+			}
 		});
 
-		const hull = mergeGeometries(parts);
-		parts.forEach((part) => part.dispose());
+		const box = new Box3().setFromObject(ship);
+		const size = box.getSize(new Vector3());
+		const alongX = size.x >= size.z;
+		const scale = WreckScene.LENGTH / Math.max(size.x, size.z);
 
-		if (!hull) {
-			return;
-		}
+		ship.scale.setScalar(scale);
+		ship.position.set(-(box.min.x + size.x / 2) * scale, -box.min.y * scale, -(box.min.z + size.z / 2) * scale);
 
-		const rust = patchMaterial(new MeshLambertMaterial({ color: '#6d4c3a' }), this.context.water.caustics);
-		this._owned.push(hull, rust);
+		// Roll around the keel, then turn the whole wreck; sink it a little into the sand
+		const roll = new Group();
+		roll.add(ship);
+		roll.rotation.set(alongX ? WreckScene.ROLL : 0, alongX ? Math.PI / 2 : 0, alongX ? 0 : WreckScene.ROLL, 'YXZ');
 
-		const mesh = new Mesh(hull, rust);
-		mesh.position.copy(this._origin);
-		mesh.rotation.y = WreckScene.YAW;
-		this.add(mesh);
-	}
-
-	/** The broken mast lying across the bow deck. */
-	private buildRigging(): void {
-		const mast = new CylinderGeometry(0.22, 0.28, 14, 8);
-		const wood = patchMaterial(new MeshLambertMaterial({ color: '#4a3a2c' }), this.context.water.caustics);
-		this._owned.push(mast, wood);
-
-		const mesh = new Mesh(mast, wood);
-		mesh.position.copy(this.toWorld(1.5, WreckScene.HEIGHT + 2.2, -9));
-		mesh.rotation.copy(new Euler(1.25, WreckScene.YAW + 0.3, 0.2, 'YXZ'));
-		this.add(mesh);
+		const wreck = new Group();
+		wreck.add(roll);
+		wreck.position.copy(this.origin).setY(this.origin.y - 2.2);
+		wreck.rotation.y = WreckScene.YAW;
+		this.add(wreck);
 	}
 }
