@@ -330,12 +330,13 @@ export default class AtlantisScene extends DiveScene {
 			material: this.stone()
 		});
 
-		// Statues watch the approach from either side, well clear of the columns
+		// Statues watch the approach from either side, well clear of the columns, facing the diver
+		// (the model faces +Z) and turned a little towards the avenue
 		const approach = AtlantisScene.AVENUES[0] ?? Math.PI / 2;
-		this.placeModel('gothic_statue', this.onAvenue(approach, 34, -14), 9, new Euler(0, Math.PI - 0.5, 0), {
+		this.placeModel('gothic_statue', this.onAvenue(approach, 34, -14), 9, new Euler(0, -0.5, 0), {
 			sink: 0.03
 		});
-		this.placeModel('gothic_statue', this.onAvenue(approach, 34, 14), 9, new Euler(0, Math.PI + 0.5, 0), {
+		this.placeModel('gothic_statue', this.onAvenue(approach, 34, 14), 9, new Euler(0, 0.5, 0), {
 			sink: 0.03
 		});
 	}

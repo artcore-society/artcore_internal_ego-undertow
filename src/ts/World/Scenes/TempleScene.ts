@@ -208,7 +208,8 @@ export default class TempleScene extends DiveScene {
 	private buildGuardian(side: -1 | 1): void {
 		const { x, z } = TempleScene.GUARDIANS;
 		const position = this.at(side * x, z);
-		// The statue model faces -Z: turn it round to face the diver coming down the avenue
+		// The statue model faces +Z; turned round, it faces the temple, where the camera swings past to
+		// look back at it (the 0.72 shot), turned a little inwards
 		const guardian = this.placeModel('gothic_statue', position, 11, new Euler(0, Math.PI - side * 0.3, 0), {
 			sink: 0.03
 		});
