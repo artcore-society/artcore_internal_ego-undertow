@@ -10,7 +10,7 @@ import {
 } from 'vue';
 import Experience from '../Core/Experience.ts';
 import { GamePhase } from '../Enums/GamePhase.ts';
-import type { IChapterView, ICaptionView, IStopView, ITelemetry } from '../Enums/ExperienceEvent.ts';
+import type { IChapterView, ICaptionView, IHotspotView, IStopView, ITelemetry } from '../Enums/ExperienceEvent.ts';
 
 export interface IExperienceBindings {
 	readonly loading: Readonly<Ref<number>>;
@@ -21,6 +21,8 @@ export interface IExperienceBindings {
 	readonly caption: Readonly<Ref<DeepReadonly<ICaptionView> | null>>;
 	readonly stop: Readonly<Ref<DeepReadonly<IStopView> | null>>;
 	readonly telemetry: Readonly<ShallowRef<ITelemetry>>;
+	/** The waiting stop's hotspot on screen, updated every frame. */
+	readonly hotspot: Readonly<ShallowRef<IHotspotView | null>>;
 	/** The controls card is open. */
 	readonly isHelpOpen: Readonly<Ref<boolean>>;
 	begin(): void;
@@ -60,12 +62,12 @@ export function useExperience(canvas: Ref<HTMLCanvasElement | null>): IExperienc
 	const caption = ref<ICaptionView | null>(null);
 	const stop = ref<IStopView | null>(null);
 	const isHelpOpen = ref(false);
+	const hotspot = shallowRef<IHotspotView | null>(null);
 	// Replaced wholesale 30 times a second: a shallow ref avoids deep-proxying every telemetry object
 	const telemetry = shallowRef<ITelemetry>({
 		progress: 0,
 		depth: 0,
 		temperature: 26,
-		hotspot: null,
 		voiceLevel: 0,
 		heading: 0,
 		signal: null,
@@ -88,6 +90,7 @@ export function useExperience(canvas: Ref<HTMLCanvasElement | null>): IExperienc
 		events.on('caption', (value) => (caption.value = value));
 		events.on('stop', (value) => (stop.value = value));
 		events.on('telemetry', (value) => (telemetry.value = value));
+		events.on('hotspot', (value) => (hotspot.value = value));
 		events.on('help', () => (isHelpOpen.value = !isHelpOpen.value));
 
 		if (import.meta.env.DEV) {
@@ -112,6 +115,7 @@ export function useExperience(canvas: Ref<HTMLCanvasElement | null>): IExperienc
 		caption: readonly(caption),
 		stop: readonly(stop),
 		telemetry,
+		hotspot,
 		begin: () => {
 			void experience.value?.begin();
 			// First dive: show how it works once

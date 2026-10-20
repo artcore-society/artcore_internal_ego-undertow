@@ -21,11 +21,13 @@ export interface IStopView {
 }
 
 export interface IHotspotView {
-	/** 0..1 across the screen. */
+	/** 0..1 across the screen; clamped to the edge while the hotspot is out of view. */
 	readonly x: number;
-	/** 0..1 down the screen. */
+	/** 0..1 down the screen; clamped to the edge while the hotspot is out of view. */
 	readonly y: number;
 	readonly isVisible: boolean;
+	/** Direction from the centre of the screen towards the hotspot, radians (0 = up, clockwise). */
+	readonly angle: number;
 }
 
 export interface ISignalView {
@@ -39,7 +41,6 @@ export interface ITelemetry {
 	readonly progress: number;
 	readonly depth: number;
 	readonly temperature: number;
-	readonly hotspot: IHotspotView | null;
 	/** 0..1 loudness of the voice speaking now. */
 	readonly voiceLevel: number;
 	/** Compass heading the diver faces, degrees, 0 = north (down the canyon). */
@@ -59,6 +60,8 @@ export interface ExperienceEventMap {
 	caption: ICaptionView | null;
 	stop: IStopView | null;
 	telemetry: ITelemetry;
+	/** Where the waiting stop's hotspot is on screen, every frame while a stop is active. */
+	hotspot: IHotspotView | null;
 	gathered: number;
 	muteChanged: boolean;
 	/** The diver asked for the controls card (H). */

@@ -74,6 +74,7 @@ export default class Experience implements IDisposable {
 	private _calm = 0;
 	private _breath = 0;
 	private _telemetryTimer = 0;
+	private _hadHotspot = false;
 
 	constructor(canvas: HTMLCanvasElement) {
 		const container = canvas.parentElement ?? document.body;
@@ -329,6 +330,7 @@ export default class Experience implements IDisposable {
 		this._sound.update(depth, world.sceneWeights(camera.position), frame.delta);
 		this._quality.update(frame.delta);
 		this.publishTelemetry(journey, camera, depth, frame.delta);
+		this.publishHotspot(journey, camera);
 
 		const motion = Math.min(1, (Math.abs(journey.progress - this._lastProgress) / Math.max(frame.delta, 1e-3)) * 25);
 		this._lastProgress = journey.progress;
@@ -376,6 +378,10 @@ export default class Experience implements IDisposable {
 		}
 	}
 
+	/**
+	 * Where the stop's hotspot is on screen. When it's out of view (looking away, or behind you) it is
+	 * pinned to the screen edge in its direction, so the prompt can point the way back.
+	 */
 	private hotspot(journey: JourneyDirector, camera: RailCamera): IHotspotView | null {
 		const stop = journey.activeStop;
 
@@ -383,13 +389,25 @@ export default class Experience implements IDisposable {
 			return null;
 		}
 
-		this._projected.copy(stop.hotspot()).project(camera);
+		const target = stop.hotspot();
+		this._local.copy(target).sub(camera.position).applyQuaternion(camera.quaternion.clone().invert());
+		this._projected.copy(target).project(camera);
 
-		return {
-			x: this._projected.x * 0.5 + 0.5,
-			y: 0.5 - this._projected.y * 0.5,
-			isVisible: this._projected.z < 1 && Math.abs(this._projected.x) < 0.95 && Math.abs(this._projected.y) < 0.95
-		};
+		const isInFront = this._local.z < 0;
+		const isVisible = isInFront && Math.abs(this._projected.x) < 0.9 && Math.abs(this._projected.y) < 0.85;
+		// Behind the camera the projection flips; use the camera-space direction instead
+		let x = isInFront ? this._projected.x : this._local.x;
+		let y = isInFront ? this._projected.y : this._local.y;
+
+		if (!isVisible) {
+			const length = Math.hypot(x, y) || 1;
+			// Keep clear of the letterbox bars and the corners
+			const edge = Math.min(0.84 / Math.max(Math.abs(x / length), 1e-3), 0.6 / Math.max(Math.abs(y / length), 1e-3));
+			x = (x / length) * edge;
+			y = (y / length) * edge;
+		}
+
+		return { x: x * 0.5 + 0.5, y: 0.5 - y * 0.5, isVisible, angle: Math.atan2(x, y) };
 	}
 
 	/** Compass heading, degrees: north is down the canyon (-Z). */
@@ -413,6 +431,17 @@ export default class Experience implements IDisposable {
 		return { bearing: Math.atan2(this._local.x, -this._local.z), distance: camera.position.distanceTo(target) };
 	}
 
+	/** Every frame while a stop waits, so the prompt sticks to its target as the diver looks around. */
+	private publishHotspot(journey: JourneyDirector, camera: RailCamera): void {
+		const hotspot = this.hotspot(journey, camera);
+
+		if (hotspot || this._hadHotspot) {
+			this.events.emit('hotspot', hotspot);
+		}
+
+		this._hadHotspot = hotspot !== null;
+	}
+
 	private publishTelemetry(journey: JourneyDirector, camera: RailCamera, depth: number, delta: number): void {
 		this._telemetryTimer += delta;
 
@@ -426,7 +455,6 @@ export default class Experience implements IDisposable {
 			depth: Math.max(0, depth),
 			// Warm at the surface, near freezing in the abyss
 			temperature: Math.max(4, 26 - depth * 0.115),
-			hotspot: this.hotspot(journey, camera),
 			voiceLevel: this._sound.voices.level,
 			heading: this.heading(camera),
 			signal: this.signal(journey, camera),
