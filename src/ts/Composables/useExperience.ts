@@ -28,6 +28,8 @@ export interface IExperienceBindings {
 	begin(): void;
 	restart(): void;
 	activateStop(): void;
+	/** From the credits, up through the surface into the sunset. */
+	surface(): void;
 	toggleMute(): void;
 	toggleHelp(open?: boolean): void;
 }
@@ -116,6 +118,7 @@ export function useExperience(canvas: Ref<HTMLCanvasElement | null>): IExperienc
 		stop: readonly(stop),
 		telemetry,
 		hotspot,
+		surface: () => experience.value?.surface(),
 		begin: () => {
 			void experience.value?.begin();
 			// First dive: show how it works once

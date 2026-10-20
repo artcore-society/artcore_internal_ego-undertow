@@ -8,9 +8,10 @@
     display: grid;
     place-items: center;
     padding: var(--space-24) var(--gutter-m);
-    cursor: pointer;
+    // The sea can be looked around through the empty parts
+    pointer-events: none;
 
-    // A soft pool of shade behind the words: the sunset stays, the text reads
+    // A soft pool of shade behind the credits, deep under the surface
     &::before {
       content: '';
       position: absolute;
@@ -22,6 +23,7 @@
         color-mix(in oklab, var(--color-abyss) 35%, transparent) 55%,
         transparent 80%
       );
+      transition: opacity var(--transition-duration-1400);
     }
 
     .text {
@@ -30,13 +32,42 @@
         0 4px 28px color-mix(in oklab, var(--color-abyss) 70%, transparent);
     }
 
+    // Over the sunset only a faint warm dusk behind the words, and a tight shadow under the letters
+    &[data-surfaced] {
+      &::before {
+        background: radial-gradient(
+          ellipse 42% 46% at 50% 50%,
+          color-mix(in oklab, #1a0d10 42%, transparent),
+          color-mix(in oklab, #1a0d10 16%, transparent) 60%,
+          transparent
+        );
+      }
+
+      .text {
+        text-shadow:
+          0 1px 2px color-mix(in oklab, #1a0d10 65%, transparent),
+          0 2px 14px color-mix(in oklab, #1a0d10 35%, transparent);
+      }
+    }
+
     &__title {
       display: grid;
       justify-items: center;
       gap: var(--space-20);
       max-inline-size: 44rem;
       text-align: center;
-      cursor: default;
+      // Waits until the camera has broken the surface and the view has settled on the sunset
+      animation: ending-title-in 2.4s 4.6s var(--transition-easing-in-out) both;
+
+      @include sass.reduced-motion {
+        animation-duration: 0.6s;
+      }
+    }
+
+    &__continue,
+    &__again,
+    &__credits {
+      pointer-events: auto;
     }
 
     &__heading {
@@ -81,6 +112,20 @@
         letter-spacing: 0.08em;
         text-transform: none;
       }
+    }
+  }
+
+  @keyframes ending-title-in {
+    from {
+      opacity: 0;
+      translate: 0 1.5rem;
+      filter: blur(6px);
+    }
+
+    to {
+      opacity: 1;
+      translate: 0 0;
+      filter: blur(0);
     }
   }
 }

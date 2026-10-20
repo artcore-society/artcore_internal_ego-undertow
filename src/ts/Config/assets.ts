@@ -40,4 +40,9 @@ export const TEXTURE_MAPS = ['diffuse', 'nor_gl', 'rough'] as const;
 
 export type TextureMap = (typeof TEXTURE_MAPS)[number];
 
+/** Recorded sounds (public/assets/sound/<name>.mp3): the rest of the soundscape is synthesised. */
+export const SOUND_NAMES = ['breach', 'open-sea'] as const;
+
+export type SoundName = (typeof SOUND_NAMES)[number];
+
 export const ASSET_BASE = `${import.meta.env.BASE_URL}assets`;

@@ -14,6 +14,8 @@ interface IUnderwaterUniformValues {
 	uFade: number;
 	uTint: Color;
 	uLamp: number;
+	uAir: number;
+	uWet: number;
 }
 
 /** Refraction wobble, chromatic fringe, tinted mask vignette, hypoxia and blackout fade, grain: one pass. */
@@ -31,7 +33,9 @@ export default class UnderwaterPass extends ShaderPass {
 				uHypoxia: { value: 0 },
 				uFade: { value: 0 },
 				uTint: { value: new Color() },
-				uLamp: { value: 0 }
+				uLamp: { value: 0 },
+				uAir: { value: 0 },
+				uWet: { value: 0 }
 			},
 			vertexShader,
 			fragmentShader
@@ -55,6 +59,16 @@ export default class UnderwaterPass extends ShaderPass {
 
 	public set lamp(value: number) {
 		this._uniforms.uLamp.value = value;
+	}
+
+	/** 0..1 how far out of the water the view is: no wobble, no murky vignette. */
+	public set air(value: number) {
+		this._uniforms.uAir.value = value;
+	}
+
+	/** 0..1 water still running down the mask after breaking the surface. */
+	public set wet(value: number) {
+		this._uniforms.uWet.value = value;
 	}
 
 	public set fade(value: number) {

@@ -17,9 +17,11 @@ import AudioSource from './Sources/AudioSource.ts';
 import {
 	ASSET_BASE,
 	MODEL_NAMES,
+	SOUND_NAMES,
 	TEXTURE_MAPS,
 	TEXTURE_SETS,
 	type ModelName,
+	type SoundName,
 	type TextureMap,
 	type TextureSet
 } from '../Config/assets.ts';
@@ -51,6 +53,7 @@ export default class AssetLibrary implements IDisposable {
 	private readonly _pieces = new Map<ModelName, IModelPart[]>();
 	private readonly _textures = new Map<string, Texture>();
 	private readonly _voices = new Map<string, ArrayBuffer>();
+	private readonly _sounds = new Map<SoundName, ArrayBuffer>();
 	private readonly _anisotropy: number;
 	private _isLoaded = false;
 
@@ -85,6 +88,13 @@ export default class AssetLibrary implements IDisposable {
 				this.fetch(new AudioSource(`${ASSET_BASE}/voice/${line.id}.mp3`, true), (buffer) => {
 					if (buffer) {
 						this._voices.set(line.id, buffer);
+					}
+				})
+			),
+			...SOUND_NAMES.map((name) =>
+				this.fetch(new AudioSource(`${ASSET_BASE}/sound/${name}.mp3`, true), (buffer) => {
+					if (buffer) {
+						this._sounds.set(name, buffer);
 					}
 				})
 			)
@@ -248,6 +258,11 @@ export default class AssetLibrary implements IDisposable {
 		return this._voices.get(id) ?? null;
 	}
 
+	/** An encoded recorded sound, or null when it isn't there. */
+	public sound(name: SoundName): ArrayBuffer | null {
+		return this._sounds.get(name) ?? null;
+	}
+
 	public dispose(): void {
 		this._textures.forEach((texture) => texture.dispose());
 		this._models.forEach((model) =>
@@ -259,6 +274,7 @@ export default class AssetLibrary implements IDisposable {
 			})
 		);
 		this._voices.clear();
+		this._sounds.clear();
 	}
 
 	private async fetch<TAsset>(source: IAssetSource<TAsset>, store: (asset: TAsset) => void): Promise<void> {

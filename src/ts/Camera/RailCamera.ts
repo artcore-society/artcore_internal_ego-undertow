@@ -15,9 +15,14 @@ import type PointerOrbit from './PointerOrbit.ts';
 export default class RailCamera extends PerspectiveCamera implements IResizable {
 	private static readonly PARALLAX_YAW = 0.08;
 	private static readonly PARALLAX_PITCH = 0.05;
+	private static readonly WATER_FAR = 320;
+	private static readonly HORIZON_FAR = 2600;
 
 	/** True while dragging may look around (at a stop). */
 	public isFree = false;
+
+	/** True once the diver may break the surface (the very end); otherwise the camera stays under it. */
+	public isSurfacing = false;
 
 	private readonly _terrain: ITerrainSampler;
 	private readonly _orbit: PointerOrbit;
@@ -32,7 +37,7 @@ export default class RailCamera extends PerspectiveCamera implements IResizable 
 
 	constructor(terrain: ITerrainSampler, orbit: PointerOrbit) {
 		// Fog swallows everything past ~150 m; a short far plane keeps depth precision and culling tight
-		super(55, 1, 0.1, 320);
+		super(55, 1, 0.1, RailCamera.WATER_FAR);
 
 		this._terrain = terrain;
 		this._orbit = orbit;
@@ -77,10 +82,20 @@ export default class RailCamera extends PerspectiveCamera implements IResizable 
 		window.removeEventListener('pointermove', this.onPointerMove);
 	}
 
-	/** Never under the seabed, never above the surface. */
+	/** Above water the view reaches the horizon; below, fog swallows everything well before the far plane. */
+	public set reachesHorizon(value: boolean) {
+		const far = value ? RailCamera.HORIZON_FAR : RailCamera.WATER_FAR;
+
+		if (this.far !== far) {
+			this.far = far;
+			this.updateProjectionMatrix();
+		}
+	}
+
+	/** Never under the seabed, never above the surface (until the end). */
 	private keepClear(): void {
 		const floor = this._terrain.heightAt(this.position.x, this.position.z) + 1.2;
-		this.position.y = MathUtils.clamp(this.position.y, floor, SURFACE_Y - 0.6);
+		this.position.y = MathUtils.clamp(this.position.y, floor, this.isSurfacing ? Infinity : SURFACE_Y - 0.6);
 	}
 
 	private readonly onPointerMove = (event: PointerEvent): void => {

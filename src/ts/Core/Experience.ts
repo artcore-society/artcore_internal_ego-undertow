@@ -19,8 +19,10 @@ import EventBus from '../Services/EventBus.ts';
 import ScrollInput from '../Services/ScrollInput.ts';
 import { installUnderwaterFog } from '../Helpers/underwaterFog.ts';
 import { damp } from '../Helpers/math.ts';
+import type { IRailSample } from '../Journey/Rail.ts';
 import { NARRATION } from '../Journey/narration.ts';
-import { SURFACE_Y } from '../Config/world.ts';
+import { SUNSET_SUN, SURFACE_Y } from '../Config/world.ts';
+import { SOUND_NAMES } from '../Config/assets.ts';
 import { GamePhase } from '../Enums/GamePhase.ts';
 import type { ExperienceEventMap, IHotspotView, ISignalView } from '../Enums/ExperienceEvent.ts';
 import type { ICaption } from '../Journey/IJourney.ts';
@@ -44,6 +46,10 @@ export default class Experience implements IDisposable {
 	/** Once followed, the whale leads this far ahead of the camera until the temple comes into sight. */
 	private static readonly WHALE_LEAD = 14;
 	private static readonly WHALE_RELEASE = 0.665;
+	/** Seconds from the credits up through the surface. */
+	private static readonly RISE_SECONDS = 5;
+	/** Eye height above the water once afloat, metres. */
+	private static readonly AFLOAT_HEIGHT = 1.3;
 
 	public readonly events = new EventBus<ExperienceEventMap>();
 
@@ -75,6 +81,10 @@ export default class Experience implements IDisposable {
 	private _breath = 0;
 	private _telemetryTimer = 0;
 	private _hadHotspot = false;
+	/** Seconds since surfacing began; negative while still under. */
+	private _surfacing = -1;
+	private _wasAbove = false;
+	private readonly _rise = { from: new Vector3(), position: new Vector3(), target: new Vector3() };
 
 	constructor(canvas: HTMLCanvasElement) {
 		const container = canvas.parentElement ?? document.body;
@@ -129,6 +139,14 @@ export default class Experience implements IDisposable {
 
 			if (voice) {
 				this._sound.voices.register(line.id, voice);
+			}
+		});
+
+		SOUND_NAMES.forEach((name) => {
+			const sound = this._assets.sound(name);
+
+			if (sound) {
+				this._sound.surfaceSounds.register(name, sound);
 			}
 		});
 
@@ -190,9 +208,34 @@ export default class Experience implements IDisposable {
 		this._fade = 0;
 		this._calm = 0;
 		this._storm.calm(false);
+		this._surfacing = -1;
+		this._wasAbove = false;
+		this._sound.reset();
+		this._post?.splash(false);
+
+		if (this._camera) {
+			this._camera.isSurfacing = false;
+			this._camera.reachesHorizon = false;
+		}
+
 		this._scroll.enabled = true;
 		this.setPhase(GamePhase.JOURNEY);
 		this.events.emit('gathered', 0);
+	}
+
+	/** From the credits, just under the surface: rise through it into the sunset. */
+	public surface(): void {
+		const camera = this._camera;
+
+		if (this._phase !== GamePhase.FINISHED || !camera) {
+			return;
+		}
+
+		this._surfacing = 0;
+		this._rise.from.copy(camera.position);
+		camera.isSurfacing = true;
+		camera.reachesHorizon = true;
+		this.setPhase(GamePhase.SURFACED);
 	}
 
 	/** Uses the hotspot the journey is waiting at. */
@@ -223,7 +266,8 @@ export default class Experience implements IDisposable {
 
 	private setPhase(phase: GamePhase): void {
 		this._phase = phase;
-		this._scroll.enabled = phase === GamePhase.JOURNEY || phase === GamePhase.FINISHED;
+		// The ending plays itself: no scrolling past the credits
+		this._scroll.enabled = phase === GamePhase.JOURNEY;
 		this.events.emit('phaseChanged', phase);
 	}
 
@@ -311,8 +355,9 @@ export default class Experience implements IDisposable {
 		const pace = this._sound.voices.isSpeaking ? Experience.LISTENING_PACE : 1;
 		journey.scroll(this._scroll.consume() * pace);
 		journey.update(frame.delta);
-		camera.isFree = journey.activeStop !== null;
-		camera.follow(journey.sample, frame);
+		camera.isFree = journey.activeStop !== null || this._phase === GamePhase.SURFACED;
+		camera.follow(this._surfacing < 0 ? journey.sample : this.rise(frame.delta), frame);
+		this.breakSurface(camera.position.y > SURFACE_Y);
 		this.guideWhale(journey.progress, camera);
 
 		world.simulate(frame, camera.position, journey.progress);
@@ -335,11 +380,50 @@ export default class Experience implements IDisposable {
 		const motion = Math.min(1, (Math.abs(journey.progress - this._lastProgress) / Math.max(frame.delta, 1e-3)) * 25);
 		this._lastProgress = journey.progress;
 		this._fade = damp(this._fade, this._phase === GamePhase.FINISHED ? 0.35 : 0, 0.6, frame.delta);
+		post.air = this._wasAbove;
 		post.fade = this._fade;
 
 		const isDeepSpeaking = this._sound.voices.isSpeaking && journey.progress > 0.5 && journey.progress < 0.9;
 		post.render(motion, isDeepSpeaking ? 0.25 : 0, frame);
 	};
+
+	/**
+	 * The way up and out: a slow rise towards the light, through the surface, then afloat on the swell,
+	 * looking out at the sun going down.
+	 */
+	private rise(delta: number): IRailSample {
+		this._surfacing += delta;
+
+		const { from, position, target } = this._rise;
+		const t = Math.min(1, this._surfacing / Experience.RISE_SECONDS);
+		const eased = t * t * (3 - 2 * t);
+		const x = from.x + SUNSET_SUN.x * eased * 4;
+		const z = from.z + SUNSET_SUN.z * eased * 4;
+		// Afloat, the diver rides the swell (a touch less than the water itself)
+		const afloat = (this._world?.sea.heightAt(x, z) ?? SURFACE_Y) * 0.8 + Experience.AFLOAT_HEIGHT;
+
+		position.set(x, from.y + (afloat - from.y) * eased, z);
+
+		// Looking up at the light while under; once out, the gaze settles on the horizon and the sun
+		const level = Math.min(1, Math.max(0, (position.y - SURFACE_Y + 1.5) / 3));
+		target
+			.set(SUNSET_SUN.x, 1 - level * 0.96, SUNSET_SUN.z * (0.3 + level * 0.7))
+			.normalize()
+			.add(position);
+
+		return this._rise;
+	}
+
+	/** The moment the camera breaks the surface, or slips back under it. */
+	private breakSurface(isAbove: boolean): void {
+		if (isAbove === this._wasAbove) {
+			return;
+		}
+
+		this._wasAbove = isAbove;
+		this._sound.surface(isAbove);
+		this._post?.splash(isAbove);
+	}
 
 	/** The whale swims its route a little ahead of the camera, then leaves once the temple is in sight. */
 	private guideWhale(progress: number, camera: RailCamera): void {

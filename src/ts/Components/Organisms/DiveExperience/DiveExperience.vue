@@ -25,19 +25,21 @@ const {
 	begin,
 	restart,
 	activateStop,
+	surface,
 	toggleMute,
 	toggleHelp
 } = useExperience(canvas);
 
-/** While the dive pauses the view can be dragged around: show a hand, closed while dragging. */
-const canLook = computed(() => stop.value !== null);
+const isEnding = computed(() => phase.value === GamePhase.FINISHED || phase.value === GamePhase.SURFACED);
+/** While the dive pauses (and on the sea at the end) the view can be dragged around: an open hand, closed while dragging. */
+const canLook = computed(() => stop.value !== null || phase.value === GamePhase.SURFACED);
 const isGrabbing = ref(false);
 </script>
 
 <template>
 	<div
 		class="dive-experience"
-		:data-cinematic="stop !== null || phase === GamePhase.FINISHED || undefined"
+		:data-cinematic="stop !== null || isEnding || undefined"
 		:data-look="canLook || undefined"
 		:data-grabbing="(canLook && isGrabbing) || undefined"
 		@pointerdown="isGrabbing = true"
@@ -69,7 +71,13 @@ const isGrabbing = ref(false);
 		</Transition>
 
 		<Transition name="fade">
-			<EndingOverlay v-if="phase === GamePhase.FINISHED" :lights="lights" @again="restart" />
+			<EndingOverlay
+				v-if="isEnding"
+				:lights="lights"
+				:is-surfaced="phase === GamePhase.SURFACED"
+				@continue="surface"
+				@again="restart"
+			/>
 		</Transition>
 
 		<Toolbar

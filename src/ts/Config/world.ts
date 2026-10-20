@@ -1,6 +1,10 @@
+import { Vector3 } from 'three';
 import { SceneId } from '../Enums/SceneId.ts';
 
 export const SURFACE_Y = 0;
+
+/** Where the sun sets once the storm has passed: low, ahead, down the canyon. */
+export const SUNSET_SUN = new Vector3(0.35, 0.045, -1).normalize();
 
 /** The seabed descends along -Z. Control points of the floor profile: [z, floor height]. */
 export const FLOOR_PROFILE: readonly (readonly [number, number])[] = [

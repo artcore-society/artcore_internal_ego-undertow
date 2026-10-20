@@ -5,6 +5,7 @@ import ReefCrackle from './ReefCrackle.ts';
 import KelpRustle from './KelpRustle.ts';
 import SoundEffects from './SoundEffects.ts';
 import VoicePlayer from './VoicePlayer.ts';
+import SurfaceSounds from './SurfaceSounds.ts';
 import type IDisposable from '../Contracts/IDisposable.ts';
 import type { SceneId } from '../Enums/SceneId.ts';
 
@@ -26,6 +27,7 @@ interface IOccasional {
 export default class SoundDirector implements IDisposable {
 	public readonly effects: SoundEffects;
 	public readonly voices: VoicePlayer;
+	public readonly surfaceSounds: SurfaceSounds;
 
 	private readonly _engine = new AudioEngine();
 	private readonly _ambience = new UnderwaterAmbience(this._engine);
@@ -34,10 +36,12 @@ export default class SoundDirector implements IDisposable {
 	private readonly _kelp = new KelpRustle(this._engine);
 	private readonly _occasional: readonly IOccasional[];
 	private readonly _timers = new Map<IOccasional, number>();
+	private _isAbove = false;
 
 	constructor() {
 		this.effects = new SoundEffects(this._engine);
 		this.voices = new VoicePlayer(this._engine);
+		this.surfaceSounds = new SurfaceSounds(this._engine);
 		this._occasional = [
 			{ scene: null, every: [5, 11], play: () => this.effects.trickle() },
 			{ scene: null, every: [20, 38], play: () => this.effects.distantWhale() },
@@ -57,11 +61,23 @@ export default class SoundDirector implements IDisposable {
 	public async start(): Promise<void> {
 		await this._engine.unlock();
 		[this._ambience, this._drone, this._reef, this._kelp].forEach((layer) => layer.start());
-		await this.voices.decode();
+		await Promise.all([this.voices.decode(), this.surfaceSounds.decode()]);
 	}
 
 	public toggleMute(): boolean {
 		return this._engine.toggleMute();
+	}
+
+	/** Out of the water the underwater world goes silent and the open sea takes over (and back). */
+	public surface(isAbove: boolean): void {
+		this._isAbove = isAbove;
+		this.surfaceSounds.surface(isAbove);
+	}
+
+	/** Back under for another dive. */
+	public reset(): void {
+		this._isAbove = false;
+		this.surfaceSounds.stop();
 	}
 
 	/**
@@ -70,7 +86,8 @@ export default class SoundDirector implements IDisposable {
 	 */
 	public update(depth: number, scenes: SceneWeights, delta: number): void {
 		// Ambience ducks under the voice so every word is clear
-		const duck = this.voices.isSpeaking ? 0.45 : 1;
+		// Above the surface the underwater layers fall silent
+		const duck = this._isAbove ? 0 : this.voices.isSpeaking ? 0.45 : 1;
 
 		this._ambience.setLevel(duck);
 		this._drone.setLevel(Math.min(1, Math.max(0, (depth - 30) / 140)) * duck);
@@ -80,7 +97,7 @@ export default class SoundDirector implements IDisposable {
 		for (const sound of this._occasional) {
 			const remaining = (this._timers.get(sound) ?? 0) - delta * (sound.scene ? scenes[sound.scene] : 1);
 
-			if (remaining <= 0 && !this.voices.isSpeaking) {
+			if (remaining <= 0 && !this.voices.isSpeaking && !this._isAbove) {
 				sound.play();
 				this._timers.set(sound, sound.every[0] + Math.random() * (sound.every[1] - sound.every[0]));
 			} else {

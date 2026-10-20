@@ -1,9 +1,12 @@
-import { Scene, type Camera, type Texture, type Vector3 } from 'three';
+import { Group, Scene, type Camera, type Texture, type Vector3 } from 'three';
 import { MODEL_NAMES, type ModelName } from '../Config/assets.ts';
+import { SURFACE_Y } from '../Config/world.ts';
 import { patchMaterial, type IMaterialPatch } from '../Helpers/MaterialPatch.ts';
 import WaterUniforms from './Water/WaterUniforms.ts';
 import WaterSurface from './Water/WaterSurface.ts';
 import WaterBackdrop from './Water/WaterBackdrop.ts';
+import SunsetSky from './Sky/SunsetSky.ts';
+import OpenSea from './Sky/OpenSea.ts';
 import LightShafts from './Water/LightShafts.ts';
 import MarineSnow from './Water/MarineSnow.ts';
 import Seabed from './Terrain/Seabed.ts';
@@ -37,6 +40,8 @@ export default class World implements IResizable, IDisposable {
 	public readonly seabed: Seabed;
 	public readonly surface = new WaterSurface(this.water);
 	public readonly backdrop = new WaterBackdrop();
+	public readonly sky = new SunsetSky(this.water);
+	public readonly sea = new OpenSea(this.water);
 	public readonly shafts = new LightShafts(this.water);
 	public readonly snow = new MarineSnow(this.water);
 	public readonly lighting = new SceneLighting();
@@ -51,6 +56,8 @@ export default class World implements IResizable, IDisposable {
 	public readonly beacon = new SignalBeacon();
 	public readonly bubbles = new DiverBubbles();
 
+	/** What only exists below the surface: the water's backdrop and surface, light shafts, specks, bubbles. */
+	private readonly _underwater = new Group();
 	private readonly _patches = new LifePatches(this.water);
 	private _trail: LightTrail | null = null;
 
@@ -94,17 +101,16 @@ export default class World implements IResizable, IDisposable {
 		this.scenes = [this.reef, this.kelp, this.wreck, this.passage, this.temple, this.atlantis];
 
 		this.atmosphere.attach(this.scene, environment);
+		this._underwater.add(this.backdrop, this.surface, this.bubbles, this.shafts, this.snow);
 		this.scene.add(
-			this.backdrop,
+			this._underwater,
+			this.sky,
+			this.sea,
 			this.seabed,
-			this.surface,
 			this.lighting,
 			...this.scenes,
 			this.atlantis.light,
-			this.beacon,
-			this.bubbles,
-			this.shafts,
-			this.snow
+			this.beacon
 		);
 	}
 
@@ -147,6 +153,14 @@ export default class World implements IResizable, IDisposable {
 
 	/** Camera-relative work once the camera has moved: culling, the surface and backdrop, the beacon. */
 	public syncToCamera(camera: Camera, frame: IFrameContext): void {
+		// Above the surface only the sky and the sea are left; below, only the water
+		const isAbove = camera.position.y > SURFACE_Y;
+		this.sky.visible = isAbove;
+		this.sea.visible = isAbove;
+		this._underwater.visible = !isAbove;
+
+		this.sky.follow(camera);
+		this.sea.follow(camera);
 		this.surface.follow(camera);
 		this.backdrop.follow(camera);
 		this.lighting.follow(camera.position);
@@ -188,6 +202,8 @@ export default class World implements IResizable, IDisposable {
 			this.seabed,
 			this.surface,
 			this.backdrop,
+			this.sky,
+			this.sea,
 			this.shafts,
 			this.snow,
 			...this.scenes,

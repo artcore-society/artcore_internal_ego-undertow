@@ -1,37 +1,24 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
 import Text from '../../Atoms/Text/Text.vue';
 import Action from '../../Atoms/Action/Action.vue';
 import { CREDITS } from '../../../Config/credits.ts';
 
+/** First the credits, just under the surface; continuing breaks the surface into the sunset and the closing card. */
 defineProps<{
 	lights: number;
+	isSurfaced: boolean;
 }>();
 
 defineEmits<{
+	continue: [];
 	again: [];
 }>();
-
-/** Seconds the credits hold before the closing card. */
-const CREDITS_SECONDS = 11;
-
-/** First the credits roll, then the closing card. A click skips ahead. */
-const isClosing = ref(false);
-let timer = 0;
-
-function close(): void {
-	window.clearTimeout(timer);
-	isClosing.value = true;
-}
-
-onMounted(() => (timer = window.setTimeout(close, CREDITS_SECONDS * 1000)));
-onBeforeUnmount(() => window.clearTimeout(timer));
 </script>
 
 <template>
-	<section class="ending-overlay" @click="close">
+	<section class="ending-overlay" :data-surfaced="isSurfaced || undefined">
 		<Transition name="fade" mode="out-in">
-			<div v-if="!isClosing" key="credits" class="ending-overlay__credits-wrap">
+			<div v-if="!isSurfaced" key="credits" class="ending-overlay__credits-wrap">
 				<Text font-size="label" color="eyebrow">Made with</Text>
 				<dl class="ending-overlay__credits" data-frame aria-label="Credits">
 					<div v-for="credit in CREDITS" :key="credit.role" class="ending-overlay__credit">
@@ -39,7 +26,7 @@ onBeforeUnmount(() => window.clearTimeout(timer));
 						<Text v-for="name in credit.names" :key="name" tag="dd" font-size="label">{{ name }}</Text>
 					</div>
 				</dl>
-				<Text font-size="label" color="subtle">Click to continue</Text>
+				<Action class="ending-overlay__continue" @click="$emit('continue')">Surface</Action>
 			</div>
 
 			<div v-else key="title" class="ending-overlay__title">
@@ -53,7 +40,7 @@ onBeforeUnmount(() => window.clearTimeout(timer));
 					doesn’t feel empty. Far below, a city glows. It will know you when you come back.
 				</Text>
 				<Text font-size="label" numeric>{{ lights }} lights carried home</Text>
-				<Action @click.stop="$emit('again')">Dive again</Action>
+				<Action class="ending-overlay__again" @click="$emit('again')">Dive again</Action>
 			</div>
 		</Transition>
 	</section>

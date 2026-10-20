@@ -24,6 +24,9 @@ export default class PostProcessing implements IResizable, IEnvironmentAware, ID
 	private readonly _underwater = new UnderwaterPass();
 	private _speed = 0;
 	private _hypoxia = 0;
+	private _air = 0;
+	private _isAbove = false;
+	private _wet = 0;
 
 	constructor(renderer: ExperienceRenderer, scene: Scene, camera: Camera) {
 		this._renderer = renderer;
@@ -43,7 +46,8 @@ export default class PostProcessing implements IResizable, IEnvironmentAware, ID
 	}
 
 	public applyEnvironment(state: Readonly<IEnvironmentState>): void {
-		this._bloom.strength = state.bloomStrength;
+		// Out in the open the sun is the only thing that should glow
+		this._bloom.strength = state.bloomStrength * (1 - this._air * 0.55);
 		this._renderer.toneMappingExposure = state.exposure;
 		this._underwater.tint.copy(state.waterColor);
 	}
@@ -51,6 +55,16 @@ export default class PostProcessing implements IResizable, IEnvironmentAware, ID
 	/** 0..1 how strongly the head lamp scatters in the water. */
 	public set lamp(value: number) {
 		this._underwater.lamp = value;
+	}
+
+	/** Whether the camera is above the water. */
+	public set air(isAbove: boolean) {
+		this._isAbove = isAbove;
+	}
+
+	/** The camera has just broken the surface (or slipped back under): water runs off the mask. */
+	public splash(isAbove: boolean): void {
+		this._wet = isAbove ? 1 : 0;
 	}
 
 	/** 0..1 how black the screen is (the ending fades out). */
@@ -67,6 +81,10 @@ export default class PostProcessing implements IResizable, IEnvironmentAware, ID
 		this._hypoxia = damp(this._hypoxia, dream, 1.5, frame.delta);
 		this._underwater.speed = this._speed;
 		this._underwater.hypoxia = this._hypoxia;
+		this._air = damp(this._air, this._isAbove ? 1 : 0, 4, frame.delta);
+		this._wet = Math.max(0, this._wet - frame.delta / 3.5);
+		this._underwater.air = this._air;
+		this._underwater.wet = this._wet;
 		this._underwater.time = frame.elapsed;
 		this._composer.render(frame.delta);
 	}
