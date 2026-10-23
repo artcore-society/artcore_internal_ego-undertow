@@ -82,7 +82,7 @@ const showScrollHint = computed(() => !props.stop && !props.caption && props.tel
 		/>
 
 		<div class="journey-overlay__comms">
-			<Transition name="fade" mode="out-in">
+			<Transition name="fade">
 				<CommsPanel
 					v-if="caption"
 					:key="caption.id"

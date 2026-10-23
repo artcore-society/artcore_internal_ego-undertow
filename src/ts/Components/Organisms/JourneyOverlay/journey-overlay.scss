@@ -80,12 +80,29 @@
       translate: 0 -50%;
     }
 
+    // Lines crossfade in one cell, so a fast scroll never queues them or shifts the layout
     &__comms {
       position: absolute;
       inset-block-end: var(--gutter-s);
+      display: grid;
+      align-items: end;
+      justify-items: center;
       transition: inset-block-end var(--transition-duration-800) var(--transition-easing-in-out);
       inset-inline-start: 50%;
       translate: -50% 0;
+
+      // Always transitioning: a line removed while it still fades in turns back from where it is, without a jump
+      > * {
+        grid-area: 1 / 1;
+        transition:
+          opacity var(--transition-duration-800) var(--transition-easing-out),
+          transform var(--transition-duration-800) var(--transition-easing-out),
+          filter var(--transition-duration-800) var(--transition-easing-out);
+
+        @include sass.reduced-motion {
+          transition: opacity var(--transition-duration-200);
+        }
+      }
     }
 
     &__sonar {
