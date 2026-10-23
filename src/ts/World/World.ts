@@ -20,7 +20,6 @@ import PassageScene from './Scenes/PassageScene.ts';
 import TempleScene from './Scenes/TempleScene.ts';
 import AtlantisScene from './Scenes/AtlantisScene.ts';
 import SignalBeacon from './Effects/SignalBeacon.ts';
-import MaraGhost from './Effects/MaraGhost.ts';
 import Sonar from './Effects/Sonar.ts';
 import DiverBubbles from './Effects/DiverBubbles.ts';
 import LightTrail, { type ITrailSpot } from './Effects/LightTrail.ts';
@@ -56,7 +55,6 @@ export default class World implements IResizable, IDisposable {
 	public readonly scenes: readonly DiveScene[];
 	public readonly beacon = new SignalBeacon();
 	public readonly bubbles = new DiverBubbles();
-	public readonly ghost = new MaraGhost();
 	public readonly sonar = new Sonar(this.water);
 
 	/** What only exists below the surface: the water's backdrop and surface, light shafts, specks, bubbles. */
@@ -104,7 +102,7 @@ export default class World implements IResizable, IDisposable {
 		this.scenes = [this.reef, this.kelp, this.wreck, this.passage, this.temple, this.atlantis];
 
 		this.atmosphere.attach(this.scene, environment);
-		this._underwater.add(this.backdrop, this.surface, this.bubbles, this.shafts, this.snow, this.ghost);
+		this._underwater.add(this.backdrop, this.surface, this.bubbles, this.shafts, this.snow);
 		this.scene.add(
 			this._underwater,
 			this.sky,
@@ -215,8 +213,7 @@ export default class World implements IResizable, IDisposable {
 			this.snow,
 			...this.scenes,
 			this.beacon,
-			this.bubbles,
-			this.ghost
+			this.bubbles
 		];
 
 		disposables.forEach((disposable) => disposable.dispose());

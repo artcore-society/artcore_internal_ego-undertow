@@ -57,9 +57,8 @@ export default class Experience implements IDisposable {
 	private static readonly DROP_FROM = 0.522;
 	private static readonly DROP_TO = 0.532;
 	private static readonly DROP_PACE = 0.3;
-	/** While her last log plays, Mara's light drifts this far ahead of the diver along the path. */
-	private static readonly GHOST_LEAD = 0.012;
-	private static readonly GHOST_LOG = '12-mara-final-log';
+	/** Mara's last log: the recorder glows steadily while it plays. */
+	private static readonly LAST_LOG = '12-mara-final-log';
 	/** From here until the city wakes, the lamp and Mara's light signal to each other. */
 	private static readonly SIGNAL_FROM = 0.9;
 	/** Seconds after the city wakes before the whale comes back, passing high over the pillar of light. */
@@ -94,7 +93,6 @@ export default class Experience implements IDisposable {
 	private readonly _projected = new Vector3();
 	private readonly _forward = new Vector3();
 	private readonly _local = new Vector3();
-	private readonly _ghostTarget = new Vector3();
 	private readonly _unsubscribers: (() => void)[] = [];
 	private _world: World | null = null;
 	private _probe: LightProbe | null = null;
@@ -450,17 +448,8 @@ export default class Experience implements IDisposable {
 			world?.trail?.reveal(caption.from);
 		}
 
-		// Her last log: the recorder glows and her light rises from it to lead the way for a while
-		const isLog = caption?.id === Experience.GHOST_LOG;
-
-		if (world && isLog !== world.wreck.isPlaying) {
-			world.wreck.isPlaying = isLog;
-
-			if (isLog) {
-				world.ghost.appear(world.wreck.recorder);
-			} else {
-				world.ghost.leave();
-			}
+		if (world) {
+			world.wreck.isPlaying = caption?.id === Experience.LAST_LOG;
 		}
 
 		this.events.emit(
@@ -525,11 +514,6 @@ export default class Experience implements IDisposable {
 		this.returnWhale(frame.delta);
 
 		world.simulate(frame, camera.position, journey.progress);
-		if (world.ghost.isPresent || world.ghost.visible) {
-			// Copied out: the rail hands back one shared sample (the camera's)
-			this._ghostTarget.copy(journey.rail.sample(Math.min(1, journey.progress + Experience.GHOST_LEAD)).position);
-			world.ghost.update(this._ghostTarget, frame.elapsed, frame.delta);
-		}
 		world.syncToCamera(camera, frame);
 
 		const depth = SURFACE_Y - camera.position.y;
