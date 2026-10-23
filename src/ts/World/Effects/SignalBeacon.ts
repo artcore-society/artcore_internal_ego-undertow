@@ -11,7 +11,10 @@ import {
 } from 'three';
 import type IDisposable from '../../Contracts/IDisposable.ts';
 
-/** Marks a stop's hotspot in the world: a glowing core with pulses that face the camera. */
+/**
+ * Marks a stop's hotspot in the world: a glowing core with pulses that face the camera. It follows its
+ * target every frame, so it stays on things that move (the whale).
+ */
 export default class SignalBeacon extends Group implements IDisposable {
 	private static readonly RING_COUNT = 3;
 	private static readonly PULSE_SECONDS = 2.4;
@@ -20,7 +23,7 @@ export default class SignalBeacon extends Group implements IDisposable {
 	private readonly _ringGeometry = new RingGeometry(0.85, 1, 48, 1);
 	private readonly _rings: Mesh<RingGeometry, MeshBasicMaterial>[] = [];
 	private _intensity = 0;
-	private _isActive = false;
+	private _target: (() => Readonly<Vector3>) | null = null;
 
 	constructor() {
 		super();
@@ -49,16 +52,17 @@ export default class SignalBeacon extends Group implements IDisposable {
 		this.visible = false;
 	}
 
-	public setTarget(target: Vector3 | null): void {
-		this._isActive = target !== null;
-
-		if (target) {
-			this.position.copy(target);
-		}
+	/** @param target where the hotspot is now (read every frame); null to fade the beacon out where it is */
+	public setTarget(target: (() => Readonly<Vector3>) | null): void {
+		this._target = target;
 	}
 
 	public update(camera: Camera, elapsed: number, delta: number): void {
-		this._intensity += ((this._isActive ? 1 : 0) - this._intensity) * Math.min(1, delta * 3);
+		if (this._target) {
+			this.position.copy(this._target());
+		}
+
+		this._intensity += ((this._target ? 1 : 0) - this._intensity) * Math.min(1, delta * 3);
 		this.visible = this._intensity > 0.01;
 
 		if (!this.visible) {

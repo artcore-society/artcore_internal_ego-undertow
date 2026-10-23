@@ -13,6 +13,7 @@ export default class Viewport implements IDisposable, IViewportSize {
 	private _width = 1;
 	private _height = 1;
 	private _quality = 1;
+	private _maxPixelRatio = Viewport.MAX_PIXEL_RATIO;
 
 	constructor(container: HTMLElement) {
 		this._container = container;
@@ -30,7 +31,15 @@ export default class Viewport implements IDisposable, IViewportSize {
 	}
 
 	public get pixelRatio(): number {
-		return Math.min(window.devicePixelRatio, Viewport.MAX_PIXEL_RATIO) * this._quality;
+		return Math.min(window.devicePixelRatio, this._maxPixelRatio) * this._quality;
+	}
+
+	/** Highest pixel ratio rendered (the high quality setting allows a retina screen's full 2×). */
+	public set maxPixelRatio(value: number) {
+		if (value !== this._maxPixelRatio) {
+			this._maxPixelRatio = value;
+			this._subscribers.forEach((subscriber) => subscriber.resize(this));
+		}
 	}
 
 	/** Render resolution scale (0..1), lowered by AdaptiveQuality when frames run long. */

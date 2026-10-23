@@ -37,7 +37,7 @@ const CAPTION_LABELS: Readonly<Record<CaptionMode, string>> = { always: 'On', mu
 			<Action
 				variant="ghost"
 				:aria-label="`Quality: ${QUALITY_LABELS[quality]}`"
-				title="Quality: automatic, always high, or low for older devices"
+				title="Quality: Auto adapts to your device · High is sharpest (retina, crisp glow) · Low is half resolution, no glow"
 				@click="$emit('cycleQuality')"
 			>
 				{{ QUALITY_LABELS[quality] }}

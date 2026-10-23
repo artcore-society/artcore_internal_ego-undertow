@@ -12,8 +12,8 @@ export default class AdaptiveQuality {
 	private static readonly FAST = 1 / 58;
 	private static readonly DOWN_AFTER = 1.5;
 	private static readonly UP_AFTER = 6;
-	/** The level the low setting holds. */
-	private static readonly LOW = 3;
+	/** The level the low setting holds: half resolution. */
+	private static readonly LOW = 4;
 
 	private readonly _viewport: Viewport;
 	private _level = 0;

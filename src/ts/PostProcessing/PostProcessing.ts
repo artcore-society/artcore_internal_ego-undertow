@@ -28,6 +28,9 @@ export default class PostProcessing implements IResizable, IEnvironmentAware, ID
 	private _isAbove = false;
 	private _wet = 0;
 	private _sheet = 1;
+	/** Bloom's resolution relative to the frame. */
+	private _bloomScale = 0.5;
+	private _size: IViewportSize | null = null;
 
 	constructor(renderer: ExperienceRenderer, scene: Scene, camera: Camera) {
 		this._renderer = renderer;
@@ -39,11 +42,17 @@ export default class PostProcessing implements IResizable, IEnvironmentAware, ID
 	}
 
 	public resize(size: IViewportSize): void {
+		this._size = size;
 		this._composer.setPixelRatio(size.pixelRatio);
 		this._composer.setSize(size.width, size.height);
-		// Bloom is soft by nature: half its resolution is invisible and saves most of its cost
-		this._bloom.setSize((size.width * size.pixelRatio) / 2, (size.height * size.pixelRatio) / 2);
+		this.sizeBloom();
 		this._underwater.setResolution(size.width * size.pixelRatio, size.height * size.pixelRatio);
+	}
+
+	/** Full-resolution bloom (the high quality setting): crisper glows, at a cost. */
+	public set isBloomSharp(value: boolean) {
+		this._bloomScale = value ? 1 : 0.5;
+		this.sizeBloom();
 	}
 
 	public applyEnvironment(state: Readonly<IEnvironmentState>): void {
@@ -106,6 +115,14 @@ export default class PostProcessing implements IResizable, IEnvironmentAware, ID
 		this._underwater.wet = this._wet;
 		this._underwater.time = frame.elapsed;
 		this._composer.render(frame.delta);
+	}
+
+	/** Bloom is soft by nature: at half resolution the difference is slight and it saves most of its cost. */
+	private sizeBloom(): void {
+		if (this._size) {
+			const { width, height, pixelRatio } = this._size;
+			this._bloom.setSize(width * pixelRatio * this._bloomScale, height * pixelRatio * this._bloomScale);
+		}
 	}
 
 	public dispose(): void {

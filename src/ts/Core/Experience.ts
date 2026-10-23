@@ -176,7 +176,7 @@ export default class Experience implements IDisposable {
 			chapterChanged: (chapter) => this.events.emit('chapter', chapter),
 			captionChanged: (caption) => this.onCaption(caption),
 			stopChanged: (stop) => {
-				world.beacon.setTarget(stop ? stop.hotspot() : null);
+				world.beacon.setTarget(stop ? stop.hotspot : null);
 				this.events.emit('stop', stop ? { id: stop.id, label: stop.label } : null);
 			},
 			finished: () => this.setPhase(GamePhase.FINISHED)
@@ -220,7 +220,7 @@ export default class Experience implements IDisposable {
 		this._camera = camera;
 		this._journey = journey;
 		this._post = new PostProcessing(this._renderer, world.scene, camera);
-		this._post.isBloomEnabled = this._quality.mode !== 'low';
+		this.applyBloomQuality();
 
 		this._viewport.subscribe(this._renderer);
 		this._viewport.subscribe(camera);
@@ -321,13 +321,14 @@ export default class Experience implements IDisposable {
 		});
 	}
 
-	/** Auto (resolution follows the frame rate), always full resolution, or low (also no bloom). */
+	/**
+	 * Auto: resolution follows the frame rate. High: a retina screen's full sharpness and full-resolution
+	 * bloom. Low: half resolution and no bloom, for older devices.
+	 */
 	public setQuality(mode: QualityMode): void {
 		this._quality.mode = mode;
-
-		if (this._post) {
-			this._post.isBloomEnabled = mode !== 'low';
-		}
+		this._viewport.maxPixelRatio = mode === 'high' ? 2 : 1.5;
+		this.applyBloomQuality();
 	}
 
 	/** A diver who has woken the city before: on the next dive it waits for them already glowing faintly. */
@@ -426,6 +427,13 @@ export default class Experience implements IDisposable {
 				this._storm.calm();
 			}
 		};
+	}
+
+	private applyBloomQuality(): void {
+		if (this._post) {
+			this._post.isBloomEnabled = this._quality.mode !== 'low';
+			this._post.isBloomSharp = this._quality.mode === 'high';
+		}
 	}
 
 	/** A story sound, unless the stop it belongs to is being skipped over. */
@@ -717,6 +725,9 @@ export default class Experience implements IDisposable {
 		}
 
 		const target = stop.hotspot();
+		// The camera has moved this frame, but its matrices only refresh when it renders: refresh them
+		// now, or the prompt trails a frame behind the beacon whenever the view moves
+		camera.updateMatrixWorld();
 		this._local.copy(target).sub(camera.position).applyQuaternion(camera.quaternion.clone().invert());
 		this._projected.copy(target).project(camera);
 
