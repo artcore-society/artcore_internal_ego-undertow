@@ -7,6 +7,8 @@ import pulseHeader from '../../../shaders/patches/pulse.header.vertex.glsl';
 import pulseVertex from '../../../shaders/patches/pulse.vertex.glsl';
 import undulateHeader from '../../../shaders/patches/undulate.header.vertex.glsl';
 import undulateVertex from '../../../shaders/patches/undulate.vertex.glsl';
+import flapHeader from '../../../shaders/patches/flap.header.vertex.glsl';
+import flapVertex from '../../../shaders/patches/flap.vertex.glsl';
 import type { IMaterialPatch } from '../../Helpers/MaterialPatch.ts';
 import type WaterUniforms from '../Water/WaterUniforms.ts';
 
@@ -44,6 +46,16 @@ export default class LifePatches {
 			uniforms: { ...this._water.timeUniforms, uSwayAmount: { value: amount }, uSwayHeight: { value: height } },
 			vertexHeader: swayHeader,
 			vertexTransform: swayVertex
+		};
+	}
+
+	/** @param halfSpan model-space distance from the body to a wing tip */
+	public flap(halfSpan: number): IMaterialPatch {
+		return {
+			key: 'flap',
+			uniforms: { ...this._water.timeUniforms, uHalfSpan: { value: halfSpan } },
+			vertexHeader: flapHeader,
+			vertexTransform: flapVertex
 		};
 	}
 

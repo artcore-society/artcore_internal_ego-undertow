@@ -27,7 +27,8 @@ const {
 	activateStop,
 	surface,
 	toggleMute,
-	toggleHelp
+	toggleHelp,
+	savePostcard
 } = useExperience(canvas);
 
 const isEnding = computed(() => phase.value === GamePhase.FINISHED || phase.value === GamePhase.SURFACED);
@@ -77,6 +78,7 @@ const isGrabbing = ref(false);
 				:is-surfaced="phase === GamePhase.SURFACED"
 				@continue="surface"
 				@again="restart"
+				@postcard="savePostcard"
 			/>
 		</Transition>
 

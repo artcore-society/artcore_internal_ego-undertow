@@ -11,6 +11,7 @@ import {
 import DiveScene from './DiveScene.ts';
 import KelpForest from '../Life/KelpForest.ts';
 import SeaTurtle from '../Life/SeaTurtle.ts';
+import MantaRay from '../Life/MantaRay.ts';
 import { patchMaterial } from '../../Helpers/MaterialPatch.ts';
 import { SCENES, SURFACE_Y } from '../../Config/world.ts';
 import { SceneId } from '../../Enums/SceneId.ts';
@@ -27,6 +28,7 @@ export default class ReefScene extends DiveScene {
 	public readonly marker: Vector3;
 
 	private readonly _turtles: SeaTurtle[] = [];
+	private readonly _manta: MantaRay;
 	private readonly _beacon = new MeshBasicMaterial({ color: new Color('#ff4d3a') });
 	private readonly _owned: { dispose(): void }[] = [];
 	private _signal = 0;
@@ -100,6 +102,12 @@ export default class ReefScene extends DiveScene {
 
 		this.populate();
 		this.buildMarker();
+
+		// High over the reef, just under the surface: seen from below against the light coming down
+		const mantaHeight = Math.min(SURFACE_Y - 2.5, this.centre.y + 8);
+		this._manta = this.own(
+			new MantaRay(context.water, context.patches, this.centre.clone().setY(mantaHeight), 26, 0.05, 1.2)
+		);
 	}
 
 	/** The transmitter switches to Mara's signal colour once you've listened. */
@@ -116,6 +124,7 @@ export default class ReefScene extends DiveScene {
 
 		this._beacon.color.set(this._signal ? '#5ef2e0' : '#ff4d3a').multiplyScalar(blink);
 		this._turtles.forEach((turtle) => turtle.update(frame.elapsed, frame.delta));
+		this._manta.update(frame.elapsed);
 	}
 
 	public override dispose(): void {

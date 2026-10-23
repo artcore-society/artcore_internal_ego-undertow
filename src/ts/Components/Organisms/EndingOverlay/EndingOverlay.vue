@@ -12,6 +12,7 @@ defineProps<{
 defineEmits<{
 	continue: [];
 	again: [];
+	postcard: [];
 }>();
 </script>
 
@@ -40,7 +41,10 @@ defineEmits<{
 					doesn’t feel empty. Far below, a city glows. It will know you when you come back.
 				</Text>
 				<Text font-size="label" numeric>{{ lights }} lights carried home</Text>
-				<Action class="ending-overlay__again" @click="$emit('again')">Dive again</Action>
+				<div class="ending-overlay__actions">
+					<Action @click="$emit('again')">Dive again</Action>
+					<Action variant="ghost" @click="$emit('postcard')">Download postcard</Action>
+				</div>
 			</div>
 		</Transition>
 	</section>

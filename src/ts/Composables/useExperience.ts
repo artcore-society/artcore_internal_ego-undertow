@@ -10,6 +10,7 @@ import {
 } from 'vue';
 import Experience from '../Core/Experience.ts';
 import { GamePhase } from '../Enums/GamePhase.ts';
+import { downloadPostcard } from '../Services/Postcard.ts';
 import type { IChapterView, ICaptionView, IHotspotView, IStopView, ITelemetry } from '../Enums/ExperienceEvent.ts';
 
 export interface IExperienceBindings {
@@ -32,6 +33,8 @@ export interface IExperienceBindings {
 	surface(): void;
 	toggleMute(): void;
 	toggleHelp(open?: boolean): void;
+	/** Downloads a postcard of the view with this dive's numbers. */
+	savePostcard(): Promise<void>;
 }
 
 const CONTROLS_SEEN_KEY = 'undertow:controls-seen';
@@ -131,6 +134,13 @@ export function useExperience(canvas: Ref<HTMLCanvasElement | null>): IExperienc
 		activateStop: () => experience.value?.activateStop(),
 		toggleMute: () => experience.value?.toggleMute(),
 		toggleHelp: (open) => (isHelpOpen.value = open ?? !isHelpOpen.value),
+		savePostcard: async () => {
+			const blob = await experience.value?.postcard();
+
+			if (blob) {
+				downloadPostcard(blob);
+			}
+		},
 		isHelpOpen: readonly(isHelpOpen)
 	};
 }

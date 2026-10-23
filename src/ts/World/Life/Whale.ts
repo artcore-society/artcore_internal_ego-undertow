@@ -93,13 +93,18 @@ export default class Whale extends Group implements IDisposable {
 		this._distance = Math.max(this._distance ?? 0, ahead);
 	}
 
-	/** Its job is done: it swims on down its road and away, and doesn't come back to lead again. */
-	public depart(): void {
+	/**
+	 * Its job is done: it swims on down its road and away, and doesn't come back to lead again.
+	 * @returns whether it set off just now
+	 */
+	public depart(): boolean {
 		if (this._distance === null || this._isDeparting) {
-			return;
+			return false;
 		}
 
 		this._isDeparting = true;
+
+		return true;
 	}
 
 	/** Back to circling the Whale Road, e.g. when the journey restarts. */

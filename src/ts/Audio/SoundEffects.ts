@@ -1,6 +1,32 @@
 import type AudioEngine from './AudioEngine.ts';
 
 /** One-shot sounds, synthesised on demand. */
+/** [from Hz, to Hz, offset s, duration s]: one sweep of a whale's song. */
+export type WhalePhrase = readonly [number, number, number, number];
+
+export const WHALE_SONG = {
+	/** Somewhere down the Whale Road. */
+	distant: [
+		[180, 320, 0, 2.6],
+		[340, 210, 2.2, 2.2],
+		[140, 120, 4.6, 3]
+	],
+	/** Close by, as it turns to lead: a low call, a bright answer, settling. */
+	greeting: [
+		[120, 260, 0, 2.2],
+		[420, 520, 1.8, 1.2],
+		[500, 240, 2.9, 2.4],
+		[200, 150, 5, 3.2]
+	],
+	/** Leaving over the temple: rising cries, then one long moan into the dark. */
+	farewell: [
+		[160, 380, 0, 2],
+		[300, 560, 1.7, 1.6],
+		[520, 300, 3.1, 1.8],
+		[220, 90, 4.6, 5.5]
+	]
+} as const satisfies Record<string, readonly WhalePhrase[]>;
+
 export default class SoundEffects {
 	private readonly _engine: AudioEngine;
 
@@ -242,7 +268,12 @@ export default class SoundEffects {
 	}
 
 	/** Humpback song: slow sliding moans with vibrato, echoing. */
-	public whaleSong(): void {
+	/**
+	 * A humpback's song, echoing down the canyon. Close by (`level` higher) it's fuller: an octave
+	 * overtone sings along with every phrase.
+	 * @param phrases [from Hz, to Hz, offset s, duration s] each
+	 */
+	public whaleSong(phrases: readonly WhalePhrase[] = WHALE_SONG.distant, level = 0.11): void {
 		const { context, effects: master } = this._engine;
 
 		if (!context || !master) {
@@ -261,41 +292,50 @@ export default class SoundEffects {
 		filter.connect(delay);
 		delay.connect(master);
 
-		const phrases: [number, number, number, number][] = [
-			[180, 320, 0, 2.6],
-			[340, 210, 2.2, 2.2],
-			[140, 120, 4.6, 3]
-		];
+		const overtone = Math.min(1, Math.max(0, (level - 0.11) / 0.1)) * 0.35;
+		let end = 0;
 
 		phrases.forEach(([from, to, offset, duration]) => {
 			const start = context.currentTime + offset;
-			const oscillator = context.createOscillator();
 			const vibrato = context.createOscillator();
-			const vibratoDepth = context.createGain();
 			const gain = context.createGain();
+			end = Math.max(end, offset + duration);
 
-			oscillator.type = 'sine';
-			oscillator.frequency.setValueAtTime(from, start);
-			oscillator.frequency.exponentialRampToValueAtTime(to, start + duration);
 			vibrato.frequency.value = 5.5;
-			vibratoDepth.gain.value = 6;
-			vibrato.connect(vibratoDepth).connect(oscillator.frequency);
 			gain.gain.setValueAtTime(0, start);
-			gain.gain.linearRampToValueAtTime(0.11, start + duration * 0.3);
+			gain.gain.linearRampToValueAtTime(level, start + duration * 0.3);
 			gain.gain.linearRampToValueAtTime(0, start + duration);
-			oscillator.connect(gain).connect(filter);
-			oscillator.start(start);
+			gain.connect(filter);
+
+			[1, ...(overtone > 0 ? [2] : [])].forEach((harmonic) => {
+				const oscillator = context.createOscillator();
+				const vibratoDepth = context.createGain();
+				const voice = context.createGain();
+
+				oscillator.type = 'sine';
+				oscillator.frequency.setValueAtTime(from * harmonic, start);
+				oscillator.frequency.exponentialRampToValueAtTime(to * harmonic, start + duration);
+				vibratoDepth.gain.value = 6 * harmonic;
+				voice.gain.value = harmonic === 1 ? 1 : overtone;
+				vibrato.connect(vibratoDepth).connect(oscillator.frequency);
+				oscillator.connect(voice).connect(gain);
+				oscillator.start(start);
+				oscillator.stop(start + duration + 0.05);
+			});
+
 			vibrato.start(start);
-			oscillator.stop(start + duration + 0.05);
 			vibrato.stop(start + duration + 0.05);
 		});
 
 		// The echo loop never goes quiet on its own; cut it once the song has faded
-		window.setTimeout(() => {
-			delay.disconnect();
-			feedback.disconnect();
-			filter.disconnect();
-		}, 12000);
+		window.setTimeout(
+			() => {
+				delay.disconnect();
+				feedback.disconnect();
+				filter.disconnect();
+			},
+			(end + 7) * 1000
+		);
 	}
 
 	private tone(frequency: number, offset: number, duration: number, level: number): void {

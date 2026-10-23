@@ -1,4 +1,5 @@
 import { AdditiveBlending, BufferGeometry, Color, Float32BufferAttribute, Points, ShaderMaterial } from 'three';
+import { damp } from '../../Helpers/math.ts';
 import vertexShader from '../../../shaders/water/snow.vertex.glsl';
 import fragmentShader from '../../../shaders/water/snow.fragment.glsl';
 import SeededRandom from '../../Helpers/SeededRandom.ts';
@@ -15,9 +16,14 @@ interface ISnowUniformValues {
 	uPixelRatio: number;
 	uColor: Color;
 	uOpacity: number;
+	uWake: number;
+	uWakeColor: Color;
 }
 
-/** Drifting particles that sell the volume of water. Positions wrap around the camera on the GPU: no CPU cost. */
+/**
+ * Drifting particles that sell the volume of water. Positions wrap around the camera on the GPU: no CPU
+ * cost. In the dark, the plankton the diver swims through lights up: a glowing wake that grows with speed.
+ */
 export default class MarineSnow
 	extends Points<BufferGeometry, ShaderMaterial>
 	implements IEnvironmentAware, IDisposable
@@ -45,7 +51,9 @@ export default class MarineSnow
 			uSize: { value: 30 },
 			uPixelRatio: { value: 1 },
 			uColor: { value: new Color() },
-			uOpacity: { value: 0.5 }
+			uOpacity: { value: 0.5 },
+			uWake: { value: 0 },
+			uWakeColor: { value: new Color('#5ff7ea') }
 		};
 
 		super(
@@ -66,6 +74,21 @@ export default class MarineSnow
 
 	public set pixelRatio(value: number) {
 		this._uniforms.uPixelRatio.value = value;
+	}
+
+	/**
+	 * @param darkness 0..1 how dark the water is (the plankton only shows in the dark)
+	 * @param motion 0..1 how fast the diver moves
+	 */
+	public wake(darkness: number, motion: number, delta: number): void {
+		const goal = darkness * motion;
+		// Lights up quickly, dies away slowly
+		this._uniforms.uWake.value = damp(
+			this._uniforms.uWake.value,
+			goal,
+			goal > this._uniforms.uWake.value ? 4 : 0.8,
+			delta
+		);
 	}
 
 	public applyEnvironment(state: Readonly<IEnvironmentState>): void {

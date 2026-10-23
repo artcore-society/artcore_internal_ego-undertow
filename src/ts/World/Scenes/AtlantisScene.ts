@@ -10,6 +10,7 @@ import {
 	PointLight,
 	ShaderMaterial,
 	TorusGeometry,
+	Vector2,
 	Vector3,
 	type BufferGeometry,
 	type Material
@@ -34,7 +35,8 @@ import type IFrameContext from '../../Contracts/IFrameContext.ts';
  * VI. Atlantis, made only of scanned ruins laid out like a city: three avenues of columns, each guarded
  * by a great gate, meet at a ring of columns around Mara's light, which hangs over a pedestal inside a
  * circle of rune stones. When the light is returned a pillar of light climbs to the surface and the
- * stone wakes in a wave from the heart outwards.
+ * stone wakes in a chain reaction from the heart: racing out along the avenues first, then filling the
+ * city between them, every stone flaring as the light reaches it.
  *
  * Layout in city space: the heart at the origin; the approach avenue runs towards +Z.
  */
@@ -45,6 +47,8 @@ export default class AtlantisScene extends DiveScene {
 	/** Avenue directions, radians: the approach (+Z) first. */
 	private static readonly AVENUES = [Math.PI / 2, Math.PI / 2 + (Math.PI * 2) / 3, Math.PI / 2 - (Math.PI * 2) / 3];
 	private static readonly GATE_DISTANCE = 50;
+	/** Wake distances (see city.header) where the light reaches the gates, the far temples, the shrines. */
+	private static readonly WAKE_MILESTONES = [AtlantisScene.GATE_DISTANCE, 78, 150];
 	/** The skyline is seen from twice as far as everything else (see the fog chunk). */
 	private static readonly LANDMARK: IMaterialPatch = { key: 'landmark', fragmentHeader: '#define FOG_REACH 0.5' };
 
@@ -67,6 +71,7 @@ export default class AtlantisScene extends DiveScene {
 	private readonly _runeStones: MeshStandardMaterial[] = [];
 	private readonly _light = new PointLight('#7ff6e8', 0, 160, 1.4);
 	private readonly _owned: (BufferGeometry | Material)[] = [this._heartMaterial, this._ringMaterial];
+	private _milestoneListener: ((index: number) => void) | null = null;
 	private _isAwake = false;
 	private _glow = 0;
 
@@ -78,6 +83,7 @@ export default class AtlantisScene extends DiveScene {
 			uniforms: {
 				uLitRadius: this._litRadius,
 				uCityCentre: { value: this.centre.clone() },
+				uAvenues: { value: AtlantisScene.AVENUES.map((angle) => new Vector2(Math.cos(angle), Math.sin(angle))) },
 				uWindowColor: { value: new Color('#7ff6e8') }
 			},
 			fragmentHeader: cityHeader,
@@ -122,6 +128,11 @@ export default class AtlantisScene extends DiveScene {
 		return this._isAwake;
 	}
 
+	/** Called as the waking light reaches each landmark (0 = the gates, then the far temples, the shrines). */
+	public onWakeMilestone(listener: (index: number) => void): void {
+		this._milestoneListener = listener;
+	}
+
 	public awaken(): void {
 		this._isAwake = true;
 	}
@@ -134,7 +145,13 @@ export default class AtlantisScene extends DiveScene {
 
 	public override update(frame: IFrameContext): void {
 		if (this._isAwake) {
-			this._litRadius.value = Math.min(400, this._litRadius.value + frame.delta * AtlantisScene.WAKE_SPEED);
+			const previous = this._litRadius.value;
+			this._litRadius.value = Math.min(400, previous + frame.delta * AtlantisScene.WAKE_SPEED);
+			AtlantisScene.WAKE_MILESTONES.forEach((milestone, index) => {
+				if (previous < milestone && this._litRadius.value >= milestone) {
+					this._milestoneListener?.(index);
+				}
+			});
 		}
 
 		this._glow = damp(this._glow, this._isAwake ? 1 : 0.12, 0.6, frame.delta);

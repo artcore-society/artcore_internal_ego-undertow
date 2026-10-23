@@ -11,6 +11,8 @@ import PointerOrbit from '../Camera/PointerOrbit.ts';
 import HeadLamp from '../Camera/HeadLamp.ts';
 import PostProcessing from '../PostProcessing/PostProcessing.ts';
 import SoundDirector from '../Audio/SoundDirector.ts';
+import { composePostcard } from '../Services/Postcard.ts';
+import { WHALE_SONG } from '../Audio/SoundEffects.ts';
 import EnvironmentDirector from '../Environment/EnvironmentDirector.ts';
 import Storm from '../Environment/Storm.ts';
 import JourneyDirector from '../Journey/JourneyDirector.ts';
@@ -78,6 +80,11 @@ export default class Experience implements IDisposable {
 	private _post: PostProcessing | null = null;
 	private _journey: JourneyDirector | null = null;
 	private _phase: GamePhase = GamePhase.LOADING;
+	/** For the postcard: the deepest point and the time spent under water this dive. */
+	private _maxDepth = 0;
+	private _diveSeconds = 0;
+	/** Waiting for the next rendered frame (read straight after it's drawn: the buffer isn't kept). */
+	private _frameRequests: ((canvas: HTMLCanvasElement) => void)[] = [];
 	private _isWhaleLeading = false;
 	private _lastProgress = 0;
 	private _fade = 0;
@@ -170,6 +177,8 @@ export default class Experience implements IDisposable {
 
 		this._probe = probe;
 		this._world = world;
+		// The waking light chimes as it reaches the gates, the far temples, the shrines: rising notes
+		world.atlantis.onWakeMilestone((index) => this._sound.effects.chime(index * 2 + 2));
 		this._camera = camera;
 		this._journey = journey;
 		this._post = new PostProcessing(this._renderer, world.scene, camera);
@@ -215,6 +224,8 @@ export default class Experience implements IDisposable {
 		world.trail?.reset();
 		this._environment.setIlluminated(false, true);
 		this._isWhaleLeading = false;
+		this._maxDepth = 0;
+		this._diveSeconds = 0;
 		this._fade = 0;
 		this._calm = 0;
 		this._storm.calm(false);
@@ -247,6 +258,26 @@ export default class Experience implements IDisposable {
 		camera.isSurfacing = true;
 		camera.reachesHorizon = true;
 		this.setPhase(GamePhase.SURFACED);
+	}
+
+	/** A postcard of the view as it is now, with this dive's numbers on it. */
+	public async postcard(): Promise<Blob> {
+		// Copied the moment it's drawn, before the browser clears the WebGL buffer
+		const frame = await new Promise<HTMLCanvasElement>((resolve) =>
+			this._frameRequests.push((canvas) => {
+				const copy = document.createElement('canvas');
+				copy.width = canvas.width;
+				copy.height = canvas.height;
+				copy.getContext('2d')?.drawImage(canvas, 0, 0);
+				resolve(copy);
+			})
+		);
+
+		return composePostcard(frame, {
+			maxDepth: this._maxDepth,
+			seconds: this._diveSeconds,
+			lights: this._world?.trail?.gathered ?? 0
+		});
 	}
 
 	/** Uses the hotspot the journey is waiting at. */
@@ -293,7 +324,7 @@ export default class Experience implements IDisposable {
 			playLog: () => this._sound.effects.discovery(),
 			followWhale: () => {
 				this._isWhaleLeading = true;
-				this._sound.effects.whaleSong();
+				this._sound.effects.whaleSong(WHALE_SONG.greeting, 0.2);
 			},
 			wakeTemple: () => {
 				world()?.temple.wake();
@@ -375,6 +406,12 @@ export default class Experience implements IDisposable {
 		world.syncToCamera(camera, frame);
 
 		const depth = SURFACE_Y - camera.position.y;
+
+		if (this._phase === GamePhase.JOURNEY && depth > 0) {
+			this._maxDepth = Math.max(this._maxDepth, depth);
+			this._diveSeconds += frame.delta;
+		}
+
 		this._environment.update(depth, world.shelterAt(camera.position), frame.delta);
 		this._lamp.update(this._environment.darkness, frame.delta);
 		this._storm.update(depth, frame.delta);
@@ -390,12 +427,18 @@ export default class Experience implements IDisposable {
 
 		const motion = Math.min(1, (Math.abs(journey.progress - this._lastProgress) / Math.max(frame.delta, 1e-3)) * 25);
 		this._lastProgress = journey.progress;
+		world.snow.wake(this._lamp.level, motion, frame.delta);
 		this._fade = damp(this._fade, this._phase === GamePhase.FINISHED ? 0.35 : 0, 0.6, frame.delta);
 		post.air = this._wasAbove;
 		post.fade = this._fade;
 
 		const isDeepSpeaking = this._sound.voices.isSpeaking && journey.progress > 0.5 && journey.progress < 0.9;
 		post.render(motion, isDeepSpeaking ? 0.25 : 0, frame);
+
+		if (this._frameRequests.length) {
+			this._frameRequests.forEach((request) => request(this._renderer.domElement));
+			this._frameRequests = [];
+		}
 	};
 
 	/**
@@ -458,7 +501,9 @@ export default class Experience implements IDisposable {
 		}
 
 		if (progress > Experience.WHALE_RELEASE) {
-			whale.depart();
+			if (whale.depart()) {
+				this._sound.effects.whaleSong(WHALE_SONG.farewell, 0.2);
+			}
 		} else {
 			whale.leadFrom(camera.position, Experience.WHALE_LEAD);
 		}
