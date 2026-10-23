@@ -32,7 +32,8 @@ places them in, so code only loads and places them:
 - props stand on y = 0, centred on their footprint; buildings and statues face +Z;
 - swimmers are centred on their body, head towards -Z, at their length in metres (fish 1, whale 15, turtle 1.3);
 - the wreck lies along Z, 30 m long, without its sails; a kit of separate objects (the rune stones) has one mesh per
-  object.
+  object;
+- the crew's boat floats: its waterline is y = 0, bow towards -Z, 13 m long.
 
 Meshes are meshopt-compressed (load with three's `MeshoptDecoder`), textures are WebP.
 

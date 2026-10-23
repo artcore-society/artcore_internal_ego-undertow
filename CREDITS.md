@@ -11,7 +11,7 @@
   stefanorivera, **Claret Tall / Wiggle Seaweed** by Blaret, **Sea Turtle** by Eloiart, **Old Ruined Column** by
   bsishir, **Half temple of Apollon (Portara)** by tsabou, **Elder Stones** by Cheyenne.Bockart,
   **Greek style ancient temple** by MMC Works, **Greek Tholos** by Nicole (nicolioos), **Roman Greco Temple Aged** by
-  Shaz (shaz13) — Sketchfab,
+  Shaz (shaz13), **Salt-Beaten Fishing Trawler** by Moon Moon (zoherrose7) — Sketchfab,
   [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/). Simplified and compressed for the web.
 - **Barramundi Fish** by Microsoft — [Khronos glTF Sample Assets](https://github.com/KhronosGroup/glTF-Sample-Assets),
   CC0.
@@ -38,6 +38,7 @@ wreck's sails are removed. Sketchfab sources:
 | [Greek style ancient temple](https://sketchfab.com/3d-models/b3445beab77142eb888085033a4db42f) | MMC Works (mmcworks) | CC-BY-4.0 |
 | [Greek Tholos](https://sketchfab.com/3d-models/b4fbe06384ba439e93643fc8818e5da4) | Nicole (nicolioos) | CC-BY-4.0 |
 | [Roman Greco Temple Aged](https://sketchfab.com/3d-models/f3e9bae12d83436bba2f7b24f03ecf0f) | Shaz (shaz13) | CC-BY-4.0 |
+| [Salt-Beaten Fishing Trawler](https://sketchfab.com/3d-models/fd28c35b76754c9386b32aa281a0e238) | Moon Moon (zoherrose7) | CC-BY-4.0 |
 
 ## Textures
 

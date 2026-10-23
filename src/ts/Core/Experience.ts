@@ -65,6 +65,9 @@ export default class Experience implements IDisposable {
 	private static readonly WHALE_RETURN_HEIGHT = 12;
 	private static readonly WHALE_RETURN_BEYOND = 25;
 	private static readonly WHALE_RETURN_RADIUS = 60;
+	/** Kai's boat waits where the diver surfaces: this far out towards the sunset and off to the left (clear of the closing card). */
+	private static readonly BOAT_AHEAD = 42;
+	private static readonly BOAT_SIDE = 26;
 	/** Seconds from the credits up through the surface. */
 	private static readonly RISE_SECONDS = 5.5;
 	/** Fraction of the rise spent gliding up under the surface before kicking through it. */
@@ -207,6 +210,7 @@ export default class Experience implements IDisposable {
 		this._world = world;
 		// The waking light chimes as it reaches the gates, the far temples, the shrines: rising notes
 		world.atlantis.onWakeMilestone((index) => this._sound.effects.chime(index * 2 + 2));
+		this.moorBoat(world, journey);
 		this._sound.place({
 			whale: () => world.passage.whale.position,
 			wreck: () => world.wreck.origin,
@@ -630,6 +634,22 @@ export default class Experience implements IDisposable {
 		const weight = (depth - Experience.PRESSURE_FROM) / (Experience.PRESSURE_FULL - Experience.PRESSURE_FROM);
 
 		return Math.min(1, Math.max(0, weight)) * (1 - this._calm);
+	}
+
+	/**
+	 * Kai's boat, where the diver comes up at the end of the journey: out towards the sunset, off to the
+	 * left, lying broadside so its whole length shows against the sky.
+	 */
+	private moorBoat(world: World, journey: JourneyDirector): void {
+		const end = journey.rail.sample(1).position;
+		const towardsSun = new Vector3(SUNSET_SUN.x, 0, SUNSET_SUN.z).normalize();
+		const right = new Vector3(-towardsSun.z, 0, towardsSun.x);
+		const spot = end
+			.clone()
+			.addScaledVector(towardsSun, Experience.BOAT_AHEAD)
+			.addScaledVector(right, -Experience.BOAT_SIDE);
+
+		world.boat.moor(spot.x, spot.z, right);
 	}
 
 	/**

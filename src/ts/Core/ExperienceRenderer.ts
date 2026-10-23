@@ -17,6 +17,8 @@ export default class ExperienceRenderer extends WebGLRenderer implements IResiza
 		this.toneMappingExposure = 1;
 		// Underwater there are no hard shadows; caustics do the work instead
 		this.shadowMap.enabled = false;
+		// Per-material clipping (the boat is cut off at the surface when seen from below)
+		this.localClippingEnabled = true;
 	}
 
 	public resize(size: IViewportSize): void {

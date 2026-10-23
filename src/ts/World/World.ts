@@ -31,6 +31,7 @@ import TempleScene from './Scenes/TempleScene.ts';
 import AtlantisScene from './Scenes/AtlantisScene.ts';
 import SignalBeacon from './Effects/SignalBeacon.ts';
 import Sonar from './Effects/Sonar.ts';
+import CrewBoat from './Sky/CrewBoat.ts';
 import DiverBubbles from './Effects/DiverBubbles.ts';
 import LightTrail, { type ITrailSpot } from './Effects/LightTrail.ts';
 import type DiveScene from './Scenes/DiveScene.ts';
@@ -52,6 +53,8 @@ export default class World implements IResizable, IDisposable {
 	public readonly backdrop = new WaterBackdrop();
 	public readonly sky = new SunsetSky(this.water);
 	public readonly sea = new OpenSea(this.water);
+	/** Kai's boat, waiting where the diver surfaces at the end. */
+	public readonly boat: CrewBoat;
 	public readonly shafts = new LightShafts(this.water);
 	public readonly snow = new MarineSnow(this.water);
 	public readonly lighting = new SceneLighting();
@@ -80,7 +83,9 @@ export default class World implements IResizable, IDisposable {
 			blue_sea_anemone_l: this._patches.sway(0.06, 1.4)
 		};
 
-		MODEL_NAMES.filter((name) => name !== 'barramundi_fish' && name !== 'humpback_whale').forEach((name) => {
+		// The boat floats above the water: no caustics on it
+		const ownPatches: readonly ModelName[] = ['barramundi_fish', 'humpback_whale', 'fishing_trawler'];
+		MODEL_NAMES.filter((name) => !ownPatches.includes(name)).forEach((name) => {
 			const extra = sway[name];
 			assets
 				.materials(name)
@@ -88,6 +93,7 @@ export default class World implements IResizable, IDisposable {
 		});
 
 		this.seabed = new Seabed(this.water, assets);
+		this.boat = new CrewBoat(assets.model('fishing_trawler'), assets.materials('fishing_trawler'), this.sea);
 
 		const [fishPart] = assets.parts('barramundi_fish');
 
@@ -123,7 +129,8 @@ export default class World implements IResizable, IDisposable {
 			this.atlantis.light,
 			this.beacon,
 			// The whale travels further than its own scene (it comes back over Atlantis): never culled with it
-			this.passage.whale
+			this.passage.whale,
+			this.boat
 		);
 	}
 
@@ -155,6 +162,7 @@ export default class World implements IResizable, IDisposable {
 		this.surface.update(frame.delta);
 		this.bubbles.update(frame.delta);
 		this.sonar.update(frame.delta);
+		this.boat.update();
 		this._trail?.update(camera, progress, frame.elapsed);
 
 		for (const scene of this.scenes) {
@@ -203,6 +211,8 @@ export default class World implements IResizable, IDisposable {
 		const isAbove = camera.position.y > SURFACE_Y;
 		this.sky.visible = isAbove;
 		this.sea.visible = isAbove;
+		// From below only its hull shows, cut off at the surface
+		this.boat.isSeenFromBelow = !isAbove;
 		this._underwater.visible = !isAbove;
 
 		this.sky.follow(camera);
