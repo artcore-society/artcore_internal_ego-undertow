@@ -10,6 +10,7 @@ import type { IModelPart } from '../../Assets/AssetLibrary.ts';
  * A humpback (scanned model, see CREDITS.md). Its body flexes in the vertex shader as it swims. It
  * circles the Whale Road until the journey asks it to lead, then swims down its route a little ahead
  * of the camera. Sent on its way, it carries on past the route's end, climbing away into the dark.
+ * Once the city wakes it comes back, passing high over it.
  */
 export default class Whale extends Group implements IDisposable {
 	/** The model's length (it is authored centred, head towards -Z): the undulation spans it. */
@@ -23,8 +24,12 @@ export default class Whale extends Group implements IDisposable {
 	/** Leaving: gone into the murk after this many metres past the route's end. */
 	private static readonly DEPARTURE_REACH = 160;
 
-	private readonly _circleCentre: Vector3;
-	private readonly _circleRadius: number;
+	private readonly _homeCentre: Vector3;
+	private readonly _homeRadius: number;
+	private readonly _circleCentre = new Vector3();
+	private _circleRadius: number;
+	/** Radians per second around its circle. */
+	private _circleSpeed = 0.045;
 	private readonly _path: CatmullRomCurve3;
 	private readonly _samples: Vector3[];
 	private readonly _body: Mesh;
@@ -55,7 +60,9 @@ export default class Whale extends Group implements IDisposable {
 	) {
 		super();
 
-		this._circleCentre = circleCentre.clone();
+		this._homeCentre = circleCentre.clone();
+		this._homeRadius = circleRadius;
+		this._circleCentre.copy(circleCentre);
 		this._circleRadius = circleRadius;
 		this._path = new CatmullRomCurve3([...path]);
 		this._samples = this._path.getSpacedPoints(Whale.SAMPLES);
@@ -112,6 +119,26 @@ export default class Whale extends Group implements IDisposable {
 		this._distance = null;
 		this._isDeparting = false;
 		this._speed = 0;
+		this._circleCentre.copy(this._homeCentre);
+		this._circleRadius = this._homeRadius;
+		this._circleSpeed = 0.045;
+		this._angle = 0;
+		this.circlePoint(this._angle, this.position);
+		this.visible = true;
+	}
+
+	/**
+	 * Comes back: appears out in the murk at `angle` on a circle around `centre`, and swims it at
+	 * `speed` radians per second (choose the circle so it passes where it should be seen).
+	 */
+	public returnTo(centre: Readonly<Vector3>, radius: number, angle: number, speed: number): void {
+		this._distance = null;
+		this._isDeparting = false;
+		this._circleCentre.copy(centre);
+		this._circleRadius = radius;
+		this._circleSpeed = speed;
+		this._angle = angle;
+		this.circlePoint(angle, this.position);
 		this.visible = true;
 	}
 
@@ -130,7 +157,7 @@ export default class Whale extends Group implements IDisposable {
 			this.roadPoint(this._distance, this._target);
 			this.roadPoint(this._distance + 3, this._ahead);
 		} else {
-			this._angle += delta * 0.045;
+			this._angle += delta * this._circleSpeed;
 			this.circlePoint(this._angle, this._target);
 			this.circlePoint(this._angle + 0.05, this._ahead);
 		}

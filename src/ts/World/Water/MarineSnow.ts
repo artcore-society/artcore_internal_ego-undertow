@@ -1,4 +1,12 @@
-import { AdditiveBlending, BufferGeometry, Color, Float32BufferAttribute, Points, ShaderMaterial } from 'three';
+import {
+	AdditiveBlending,
+	BufferGeometry,
+	Color,
+	Float32BufferAttribute,
+	Points,
+	ShaderMaterial,
+	type Vector3
+} from 'three';
 import { damp } from '../../Helpers/math.ts';
 import vertexShader from '../../../shaders/water/snow.vertex.glsl';
 import fragmentShader from '../../../shaders/water/snow.fragment.glsl';
@@ -17,6 +25,7 @@ interface ISnowUniformValues {
 	uColor: Color;
 	uOpacity: number;
 	uWake: number;
+	uCarried: Vector3;
 	uWakeColor: Color;
 }
 
@@ -53,6 +62,7 @@ export default class MarineSnow
 			uColor: { value: new Color() },
 			uOpacity: { value: 0.5 },
 			uWake: { value: 0 },
+			uCarried: water.carried,
 			uWakeColor: { value: new Color('#5ff7ea') }
 		};
 

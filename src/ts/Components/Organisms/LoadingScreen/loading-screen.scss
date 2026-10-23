@@ -13,6 +13,23 @@
       opacity: 0.85;
     }
 
+    &__log {
+      display: grid;
+      gap: var(--space-8);
+      inline-size: min(30rem, calc(100vw - var(--gutter-m) * 2));
+      margin: 0;
+      text-align: center;
+
+      blockquote {
+        margin: 0;
+      }
+    }
+
+    // The untyped rest keeps the line from reflowing as it types out
+    &__ghost {
+      visibility: hidden;
+    }
+
     &__progress {
       display: grid;
       gap: var(--space-12);

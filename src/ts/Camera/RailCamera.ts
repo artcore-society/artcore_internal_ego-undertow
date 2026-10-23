@@ -1,4 +1,4 @@
-import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
+import { MathUtils, PerspectiveCamera, Vector3, type Vector2 } from 'three';
 import { SURFACE_Y } from '../Config/world.ts';
 import { damp } from '../Helpers/math.ts';
 import type { IRailSample } from '../Journey/Rail.ts';
@@ -23,6 +23,9 @@ export default class RailCamera extends PerspectiveCamera implements IResizable 
 
 	/** True once the diver may break the surface (the very end); otherwise the camera stays under it. */
 	public isSurfacing = false;
+
+	/** The water's current (m/s across x, z): the diver floats back and forth with it. */
+	public current: Readonly<Vector2> | null = null;
 
 	private readonly _terrain: ITerrainSampler;
 	private readonly _orbit: PointerOrbit;
@@ -61,6 +64,14 @@ export default class RailCamera extends PerspectiveCamera implements IResizable 
 		this.position.copy(sample.position);
 		this.position.y += Math.sin(frame.elapsed * 1.3) * 0.08;
 		this.position.x += Math.sin(frame.elapsed * 0.6) * 0.05;
+
+		// Afloat in the current: pushed a little its way and back on a slow swell
+		if (this.current && !this.isSurfacing) {
+			const swell = Math.sin(frame.elapsed * 0.35) * 1.3;
+			this.position.x += this.current.x * swell;
+			this.position.z += this.current.y * swell;
+		}
+
 		this.keepClear();
 
 		this._direction.subVectors(sample.target, sample.position).normalize();
@@ -75,6 +86,11 @@ export default class RailCamera extends PerspectiveCamera implements IResizable 
 		this._look.copy(this.position).add(this._direction);
 		this.lookAt(this._look);
 		this.rotation.z += Math.sin(frame.elapsed * 0.5) * 0.008;
+	}
+
+	/** Where the pointer is, -1..1 across and down the screen (the lamp aims there). */
+	public get pointer(): Readonly<{ x: number; y: number }> {
+		return this._pointer;
 	}
 
 	/** Stops listening to the pointer. */

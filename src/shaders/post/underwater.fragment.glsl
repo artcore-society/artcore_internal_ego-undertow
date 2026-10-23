@@ -1,4 +1,5 @@
 #include ../includes/hash.glsl
+#include ../includes/bell.glsl
 
 uniform sampler2D tDiffuse;
 uniform float uTime;
@@ -15,6 +16,10 @@ uniform float uAir;
 uniform float uWet;
 // Breaking the surface: 0 = the mask is still covered by a sheet of water, 1 = it has drained off
 uniform float uSheet;
+// 0..1 the weight of the water deep down: the view narrows and loses colour
+uniform float uPressure;
+// Where the head lamp's beam scatters, screen UV
+uniform vec2 uBeam;
 
 varying vec2 vUv;
 
@@ -42,7 +47,7 @@ void main() {
 	float head = fract(hash11(column + 7.0) - uTime * (0.12 + hash11(column) * 0.25));
 	float above = vUv.y - head;
 	float trail = smoothstep(0.0, 0.02, above) * (1.0 - smoothstep(0.05, 0.35 + hash11(column + 5.0) * 0.3, above));
-	float drop = exp(-pow(above / 0.012, 2.0));
+	float drop = bell(above / 0.012);
 	float width = mix(0.07, 0.16, drop);
 	float lens = exp(-across * across / (width * width)) * max(trail * 0.6, drop) * present;
 	wobble += vec2(across * 0.05, -drop * 0.004) * lens * uWet;
@@ -70,21 +75,21 @@ void main() {
 		}
 		color = mix(color, smear * 0.2 * vec3(0.55, 0.78, 0.85), covered);
 	}
-	color += vec3(1.0, 0.85, 0.7) * exp(-pow((vUv.y - edge) / 0.006, 2.0)) * 0.35 * (1.0 - uSheet);
+	color += vec3(1.0, 0.85, 0.7) * bell((vUv.y - edge) / 0.006) * 0.35 * (1.0 - uSheet);
 
 	// Head lamp scattering in the murk: a soft cone of lit particles ahead, slightly below centre
-	vec2 beam = (vUv - vec2(0.53, 0.44)) * vec2(1.25, 1.0);
+	vec2 beam = (vUv - uBeam) * vec2(1.25, 1.0);
 	float scatter = exp(-dot(beam, beam) * 7.0) * (0.85 + 0.15 * sin(uTime * 1.7 + vUv.y * 9.0));
 	color += vec3(0.75, 0.9, 1.0) * scatter * uLamp * 0.06 * (1.0 - uAir);
 
 	// Mask vignette, tinted with the water
-	float vignette = smoothstep(0.8, 0.2, radius * (1.0 + uHypoxia * 0.6));
+	float vignette = smoothstep(0.8, 0.2, radius * (1.0 + uHypoxia * 0.6 + uPressure * 0.3));
 	// In the air the mask's rim is only a soft darkening, not the water's colour
 	vec3 rim = mix(color * uTint * 0.25, color * 0.55, uAir);
 	color = mix(rim, color, mix(vignette, 0.35 + vignette * 0.65, uAir));
 
 	float grey = dot(color, vec3(0.299, 0.587, 0.114));
-	color = mix(color, vec3(grey), uHypoxia * 0.55);
+	color = mix(color, vec3(grey), min(1.0, uHypoxia * 0.55 + uPressure * 0.22));
 
 	float grain = hash21(vUv * uResolution + fract(uTime * 7.31) * 100.0) - 0.5;
 	color += grain * 0.03 * (0.4 + 0.6 * grey);

@@ -25,6 +25,7 @@ interface IShaftUniformValues {
 	uSlant: Vector3;
 	uIntensity: number;
 	uColor: Color;
+	uFlash: number;
 }
 
 /** God rays: additive billboards hanging from the surface, wrapped around the camera on the GPU. */
@@ -56,7 +57,8 @@ export default class LightShafts
 			uCell: { value: 110 },
 			uSlant: { value: new Vector3(0.18, -1, -0.12) },
 			uIntensity: { value: 1 },
-			uColor: { value: new Color() }
+			uColor: { value: new Color() },
+			uFlash: { value: 0 }
 		};
 
 		super(
@@ -73,6 +75,11 @@ export default class LightShafts
 
 		this._uniforms = uniforms;
 		this.frustumCulled = false;
+	}
+
+	/** 0..1 lightning overhead. */
+	public set flash(value: number) {
+		this._uniforms.uFlash.value = value;
 	}
 
 	public applyEnvironment(state: Readonly<IEnvironmentState>): void {

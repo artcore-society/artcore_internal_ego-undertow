@@ -45,7 +45,7 @@ export default class SeaTurtle extends Group implements IDisposable {
 			this._centre.z + Math.sin(angle) * this._radius
 		);
 		// Face along the loop's tangent (forward is -Z), nose tilted with the climb
-		this.rotation.set(-Math.cos(angle * 0.6) * 0.15, Math.PI - angle, Math.sin(elapsed * 0.4) * 0.06, 'YXZ');
+		this.rotation.set(Math.cos(angle * 0.6) * 0.15, Math.PI - angle, Math.sin(elapsed * 0.4) * 0.06, 'YXZ');
 		this._mixer.update(delta);
 	}
 

@@ -73,7 +73,11 @@ export default class AtlantisScene extends DiveScene {
 	private readonly _owned: (BufferGeometry | Material)[] = [this._heartMaterial, this._ringMaterial];
 	private _milestoneListener: ((index: number) => void) | null = null;
 	private _isAwake = false;
+	private _isRemembered = false;
 	private _glow = 0;
+
+	/** 0..1 Mara's light flashing back at the diver (before the city wakes). */
+	public answer = 0;
 
 	constructor(context: ISceneContext) {
 		super(SCENES[SceneId.ATLANTIS], context, 97);
@@ -137,8 +141,10 @@ export default class AtlantisScene extends DiveScene {
 		this._isAwake = true;
 	}
 
-	public reset(): void {
+	/** @param isRemembered a diver who woke it before: it waits for them already glowing faintly */
+	public reset(isRemembered = false): void {
 		this._isAwake = false;
+		this._isRemembered = isRemembered;
 		this._litRadius.value = 0;
 		this._glow = 0;
 	}
@@ -154,11 +160,13 @@ export default class AtlantisScene extends DiveScene {
 			});
 		}
 
-		this._glow = damp(this._glow, this._isAwake ? 1 : 0.12, 0.6, frame.delta);
+		this._glow = damp(this._glow, this._isAwake ? 1 : this._isRemembered ? 0.32 : 0.12, 0.6, frame.delta);
 
 		const pulse = 0.85 + Math.sin(frame.elapsed * 2) * 0.15;
-		this._heartMaterial.color.setRGB(0.5, 0.96, 0.91).multiplyScalar(0.8 + this._glow * 1.8 * pulse);
-		this._ringMaterial.color.setRGB(0.5, 0.96, 0.91).multiplyScalar((0.25 + this._glow * 0.55) * pulse);
+		this._heartMaterial.color.setRGB(0.5, 0.96, 0.91).multiplyScalar(0.8 + this._glow * 1.8 * pulse + this.answer * 4);
+		this._ringMaterial.color
+			.setRGB(0.5, 0.96, 0.91)
+			.multiplyScalar((0.25 + this._glow * 0.55) * pulse + this.answer * 0.8);
 		this._ringMaterial.opacity = 0.35 + this._glow * 0.65;
 		this._pillarIntensity.value = Math.max(0, this._glow - 0.12) * 0.75;
 		this._light.intensity = this._glow * AtlantisScene.LIGHT_POWER;

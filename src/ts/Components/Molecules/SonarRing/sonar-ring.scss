@@ -5,6 +5,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-12);
+    pointer-events: auto;
 
     &__scope {
       position: relative;

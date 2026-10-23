@@ -20,6 +20,8 @@ import PassageScene from './Scenes/PassageScene.ts';
 import TempleScene from './Scenes/TempleScene.ts';
 import AtlantisScene from './Scenes/AtlantisScene.ts';
 import SignalBeacon from './Effects/SignalBeacon.ts';
+import MaraGhost from './Effects/MaraGhost.ts';
+import Sonar from './Effects/Sonar.ts';
 import DiverBubbles from './Effects/DiverBubbles.ts';
 import LightTrail, { type ITrailSpot } from './Effects/LightTrail.ts';
 import type DiveScene from './Scenes/DiveScene.ts';
@@ -54,6 +56,8 @@ export default class World implements IResizable, IDisposable {
 	public readonly scenes: readonly DiveScene[];
 	public readonly beacon = new SignalBeacon();
 	public readonly bubbles = new DiverBubbles();
+	public readonly ghost = new MaraGhost();
+	public readonly sonar = new Sonar(this.water);
 
 	/** What only exists below the surface: the water's backdrop and surface, light shafts, specks, bubbles. */
 	private readonly _underwater = new Group();
@@ -100,7 +104,7 @@ export default class World implements IResizable, IDisposable {
 		this.scenes = [this.reef, this.kelp, this.wreck, this.passage, this.temple, this.atlantis];
 
 		this.atmosphere.attach(this.scene, environment);
-		this._underwater.add(this.backdrop, this.surface, this.bubbles, this.shafts, this.snow);
+		this._underwater.add(this.backdrop, this.surface, this.bubbles, this.shafts, this.snow, this.ghost);
 		this.scene.add(
 			this._underwater,
 			this.sky,
@@ -109,7 +113,9 @@ export default class World implements IResizable, IDisposable {
 			this.lighting,
 			...this.scenes,
 			this.atlantis.light,
-			this.beacon
+			this.beacon,
+			// The whale travels further than its own scene (it comes back over Atlantis): never culled with it
+			this.passage.whale
 		);
 	}
 
@@ -137,9 +143,10 @@ export default class World implements IResizable, IDisposable {
 	}
 
 	public simulate(frame: IFrameContext, camera: Vector3, progress: number): void {
-		this.water.update(frame.elapsed);
+		this.water.update(frame.elapsed, frame.delta);
 		this.surface.update(frame.delta);
 		this.bubbles.update(frame.delta);
+		this.sonar.update(frame.delta);
 		this._trail?.update(camera, progress, frame.elapsed);
 
 		for (const scene of this.scenes) {
@@ -175,6 +182,7 @@ export default class World implements IResizable, IDisposable {
 	/** 0..1 lightning from the storm overhead. */
 	public set flash(value: number) {
 		this.surface.flash = value;
+		this.shafts.flash = value;
 		this.backdrop.flash = value;
 		this.lighting.flash = value;
 	}
@@ -207,7 +215,8 @@ export default class World implements IResizable, IDisposable {
 			this.snow,
 			...this.scenes,
 			this.beacon,
-			this.bubbles
+			this.bubbles,
+			this.ghost
 		];
 
 		disposables.forEach((disposable) => disposable.dispose());

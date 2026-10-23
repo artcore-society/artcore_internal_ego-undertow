@@ -1,3 +1,4 @@
+import type { Vector3 } from 'three';
 import type IDisposable from '../Contracts/IDisposable.ts';
 
 /** Owns the AudioContext and the master bus. Browsers only allow starting it from a user gesture. */
@@ -28,6 +29,47 @@ export default class AudioEngine implements IDisposable {
 
 	public get isMuted(): boolean {
 		return this._muted;
+	}
+
+	/**
+	 * An input on the effects bus that sounds from `position`: panned towards it and a little quieter
+	 * with distance. Cheap equal-power panning (no HRTF); one per sound, dropped when the sound ends.
+	 */
+	public at(position: Readonly<Vector3>): AudioNode | null {
+		const context = this._context;
+		const effects = this._effects;
+
+		if (!context || !effects) {
+			return null;
+		}
+
+		const panner = context.createPanner();
+		panner.panningModel = 'equalpower';
+		panner.distanceModel = 'inverse';
+		panner.refDistance = 12;
+		panner.rolloffFactor = 0.5;
+		panner.positionX.value = position.x;
+		panner.positionY.value = position.y;
+		panner.positionZ.value = position.z;
+		panner.connect(effects);
+
+		return panner;
+	}
+
+	/** Where the listener is and looks (call every frame). */
+	public listen(position: Readonly<Vector3>, forward: Readonly<Vector3>): void {
+		const listener = this._context?.listener;
+
+		if (!listener?.positionX) {
+			return;
+		}
+
+		listener.positionX.value = position.x;
+		listener.positionY.value = position.y;
+		listener.positionZ.value = position.z;
+		listener.forwardX.value = forward.x;
+		listener.forwardY.value = forward.y;
+		listener.forwardZ.value = forward.z;
 	}
 
 	/** Two seconds of white noise, shared by every noise-based sound. */

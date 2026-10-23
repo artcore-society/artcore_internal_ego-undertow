@@ -1,8 +1,10 @@
 import type Viewport from './Viewport.ts';
+import type { QualityMode } from '../Services/Preferences.ts';
 
 /**
  * Keeps the frame rate up by trading resolution: watches smoothed frame time and steps the render
  * scale down when frames run long, back up when there is headroom. Hysteresis avoids flip-flopping.
+ * The diver can also fix it: always full resolution, or always low.
  */
 export default class AdaptiveQuality {
 	private static readonly LEVELS = [1, 0.85, 0.72, 0.6, 0.5] as const;
@@ -10,6 +12,8 @@ export default class AdaptiveQuality {
 	private static readonly FAST = 1 / 58;
 	private static readonly DOWN_AFTER = 1.5;
 	private static readonly UP_AFTER = 6;
+	/** The level the low setting holds. */
+	private static readonly LOW = 3;
 
 	private readonly _viewport: Viewport;
 	private _level = 0;
@@ -17,6 +21,7 @@ export default class AdaptiveQuality {
 	private _slowTime = 0;
 	private _fastTime = 0;
 	private _warmup = 2;
+	private _mode: QualityMode = 'auto';
 
 	constructor(viewport: Viewport) {
 		this._viewport = viewport;
@@ -26,7 +31,20 @@ export default class AdaptiveQuality {
 		return AdaptiveQuality.LEVELS[this._level] ?? 1;
 	}
 
+	public get mode(): QualityMode {
+		return this._mode;
+	}
+
+	public set mode(mode: QualityMode) {
+		this._mode = mode;
+		this.setLevel(mode === 'low' ? AdaptiveQuality.LOW : 0);
+	}
+
 	public update(delta: number): void {
+		if (this._mode !== 'auto') {
+			return;
+		}
+
 		// Shader warm-up and tab switches produce outliers; ignore the first seconds
 		if (this._warmup > 0) {
 			this._warmup -= delta;

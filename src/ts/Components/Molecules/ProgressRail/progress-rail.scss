@@ -46,6 +46,16 @@
       &[data-active] {
         color: var(--color-accent);
       }
+
+      // Jumpable chapters (after a full dive)
+      &:is(button) {
+        pointer-events: auto;
+
+        &:hover,
+        &:focus-visible {
+          color: var(--color-text);
+        }
+      }
     }
 
     &__diver {

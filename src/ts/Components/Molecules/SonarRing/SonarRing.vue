@@ -3,6 +3,10 @@ import { computed } from 'vue';
 import Text from '../../Atoms/Text/Text.vue';
 import type { ISignalView } from '../../../Enums/ExperienceEvent.ts';
 
+defineEmits<{
+	ping: [];
+}>();
+
 const props = defineProps<{
 	signal: Readonly<ISignalView> | null;
 }>();
@@ -25,7 +29,15 @@ const blip = computed(() => {
 </script>
 
 <template>
-	<div class="sonar-ring" :data-silent="!signal || undefined">
+	<button
+		type="button"
+		class="sonar-ring"
+		:data-silent="!signal || undefined"
+		aria-label="Send a sonar ping"
+		title="Sonar ping (P)"
+		@mousedown.prevent
+		@click="$emit('ping')"
+	>
 		<div class="sonar-ring__scope" aria-hidden="true">
 			<span class="sonar-ring__sweep" />
 			<span v-if="blip" class="sonar-ring__blip" :style="blip" />
@@ -35,5 +47,5 @@ const blip = computed(() => {
 			<Text font-size="label" color="eyebrow">Signal</Text>
 			<Text font-size="label" numeric>{{ signal ? `${Math.round(signal.distance)} m` : 'Found' }}</Text>
 		</div>
-	</div>
+	</button>
 </template>

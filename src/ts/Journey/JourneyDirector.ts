@@ -75,6 +75,23 @@ export default class JourneyDirector {
 		this._target = Math.min(this.gate(), Math.max(0, this._target + amount));
 	}
 
+	/**
+	 * Cuts straight to `progress` (skipping chapters). Every stop before it counts as used: its action
+	 * runs, so the world is as it would be had the diver swum there.
+	 */
+	public jumpTo(progress: number): void {
+		for (const stop of this._journey.stops) {
+			if (stop.progress < progress && !this._unlocked.has(stop.id)) {
+				this._unlocked.add(stop.id);
+				stop.onActivate();
+			}
+		}
+
+		this.setStop(null);
+		this._target = Math.min(this.gate(), progress);
+		this._progress = this._target;
+	}
+
 	/** Uses the hotspot of the stop the diver is waiting at, which opens the way on. */
 	public activate(): void {
 		const stop = this._stop;

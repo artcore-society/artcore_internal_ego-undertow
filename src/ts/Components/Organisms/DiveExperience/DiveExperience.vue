@@ -28,8 +28,20 @@ const {
 	surface,
 	toggleMute,
 	toggleHelp,
-	savePostcard
+	savePostcard,
+	ping,
+	quality,
+	captions,
+	isReturning,
+	cycleQuality,
+	cycleCaptions,
+	jumpTo
 } = useExperience(canvas);
+
+/** Captions as chosen: always, only while the sound is off, or never (the voices still play). */
+const shownCaption = computed(() =>
+	captions.value === 'always' || (captions.value === 'muted' && isMuted.value) ? caption.value : null
+);
 
 const isEnding = computed(() => phase.value === GamePhase.FINISHED || phase.value === GamePhase.SURFACED);
 /** While the dive pauses (and on the sea at the end) the view can be dragged around: an open hand, closed while dragging. */
@@ -55,7 +67,7 @@ const isGrabbing = ref(false);
 		</Transition>
 
 		<Transition name="fade">
-			<IntroOverlay v-if="phase === GamePhase.INTRO" @begin="begin" />
+			<IntroOverlay v-if="phase === GamePhase.INTRO" :is-returning="isReturning" @begin="begin" />
 		</Transition>
 
 		<Transition name="fade">
@@ -63,11 +75,14 @@ const isGrabbing = ref(false);
 				v-if="phase === GamePhase.JOURNEY"
 				:telemetry="telemetry"
 				:chapter="chapter"
-				:caption="caption"
+				:caption="shownCaption"
 				:stop="stop"
 				:hotspot="hotspot"
 				:lights="lights"
+				:can-skip="isReturning"
 				@activate="activateStop"
+				@ping="ping"
+				@jump="jumpTo"
 			/>
 		</Transition>
 
@@ -85,8 +100,12 @@ const isGrabbing = ref(false);
 		<Toolbar
 			v-if="phase !== GamePhase.LOADING"
 			:is-muted="isMuted"
+			:quality="quality"
+			:captions="captions"
 			@toggle-mute="toggleMute"
 			@help="toggleHelp(true)"
+			@cycle-quality="cycleQuality"
+			@cycle-captions="cycleCaptions"
 		/>
 
 		<Transition name="fade">

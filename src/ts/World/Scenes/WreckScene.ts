@@ -99,8 +99,13 @@ export default class WreckScene extends DiveScene {
 		this.predators(this.origin.clone().add(new Vector3(0, 10, 0)), 3, 22, 303);
 	}
 
+	/** While Mara's log plays, the recorder stops blinking and glows steadily. */
+	public isPlaying = false;
+
 	public override update(frame: IFrameContext): void {
-		this._lamp.color.setRGB(0.37, 0.95, 0.88).multiplyScalar(Math.sin(frame.elapsed * 2.6) > 0.2 ? 5 : 0.3);
+		const blink = Math.sin(frame.elapsed * 2.6) > 0.2 ? 5 : 0.3;
+		const glow = 4 + Math.sin(frame.elapsed * 3.1) * 1.2;
+		this._lamp.color.setRGB(0.37, 0.95, 0.88).multiplyScalar(this.isPlaying ? glow : blink);
 	}
 
 	public override dispose(): void {

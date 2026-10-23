@@ -8,10 +8,10 @@ export interface IDiveLog {
 }
 
 // A postcard of the dive: a frame of the experience with the title and the dive's numbers over it,
-// downloaded as a PNG.
+// downloaded as a JPEG.
 const MAX_WIDTH = 1800;
 const FONT = '"Saira", system-ui, sans-serif';
-const FILE_NAME = 'undertow-postcard.png';
+const FILE_NAME = 'undertow-postcard.jpg';
 
 export async function composePostcard(frame: HTMLCanvasElement, log: IDiveLog): Promise<Blob> {
 	const scale = Math.min(1, MAX_WIDTH / frame.width);
@@ -55,12 +55,14 @@ export async function composePostcard(frame: HTMLCanvasElement, log: IDiveLog): 
 	return new Promise((resolve, reject) =>
 		canvas.toBlob(
 			(blob) => (blob ? resolve(blob) : reject(new Error('The postcard could not be encoded'))),
-			'image/png'
+			// A photo of the sea: as a JPEG it's a fraction of a PNG's size, with no visible difference
+			'image/jpeg',
+			0.9
 		)
 	);
 }
 
-/** Downloads the postcard as a PNG. */
+/** Downloads the postcard as a JPEG. */
 export function downloadPostcard(blob: Blob): void {
 	const url = URL.createObjectURL(blob);
 	const link = document.createElement('a');

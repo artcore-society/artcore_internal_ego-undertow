@@ -44,6 +44,7 @@ Meshes are meshopt-compressed (load with three's `MeshoptDecoder`), textures are
 | ↑ / S                    | Swim back up                                                 |
 | Drag                     | Look around while the dive pauses                            |
 | Click the glowing point  | Continue the story                                           |
+| P                        | Sonar ping: a ring of light outlines what's around you       |
 | M / H                    | Sound on/off / controls                                      |
 
 ## Architecture

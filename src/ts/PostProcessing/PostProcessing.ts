@@ -58,6 +58,21 @@ export default class PostProcessing implements IResizable, IEnvironmentAware, ID
 		this._underwater.lamp = value;
 	}
 
+	/** 0..1 the weight of the water: the view narrows and greys. */
+	public set pressure(value: number) {
+		this._underwater.pressure = value;
+	}
+
+	/** Where the head lamp points, -1..1 across and down the screen. */
+	public aimLamp(x: number, y: number): void {
+		this._underwater.setBeam(0.53 + x * 0.3, 0.44 - y * 0.25);
+	}
+
+	/** Bloom is the costliest pass: the low quality setting goes without it. */
+	public set isBloomEnabled(value: boolean) {
+		this._bloom.enabled = value;
+	}
+
 	/** Whether the camera is above the water. */
 	public set air(isAbove: boolean) {
 		this._isAbove = isAbove;

@@ -24,10 +24,13 @@ const props = defineProps<{
 	stop: Readonly<IStopView> | null;
 	hotspot: Readonly<IHotspotView> | null;
 	lights: number;
+	canSkip: boolean;
 }>();
 
 defineEmits<{
 	activate: [];
+	ping: [];
+	jump: [from: number];
 }>();
 
 const CHAPTER_MARKS = [
@@ -79,6 +82,8 @@ const showScrollHint = computed(() => !props.stop && !props.caption && props.tel
 			:progress="telemetry.progress"
 			:marks="CHAPTER_MARKS"
 			:current="chapter?.numeral ?? null"
+			:can-skip="canSkip"
+			@jump="$emit('jump', $event)"
 		/>
 
 		<div class="journey-overlay__comms">
@@ -93,7 +98,7 @@ const showScrollHint = computed(() => !props.stop && !props.caption && props.tel
 			</Transition>
 		</div>
 
-		<SonarRing class="journey-overlay__sonar" :signal="telemetry.signal" />
+		<SonarRing class="journey-overlay__sonar" :signal="telemetry.signal" @ping="$emit('ping')" />
 
 		<Transition name="fade">
 			<div v-if="stop" class="journey-overlay__cue">

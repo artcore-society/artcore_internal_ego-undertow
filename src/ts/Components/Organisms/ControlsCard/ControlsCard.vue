@@ -13,6 +13,7 @@ const CONTROLS = [
 	{ keys: ['↑', 'S'], label: 'Swim back up' },
 	{ keys: ['Drag'], label: 'Look around when the dive pauses' },
 	{ keys: ['Click'], label: 'Use the glowing point to go on' },
+	{ keys: ['P'], label: 'Sonar ping: light up what’s around you' },
 	{ keys: ['M'], label: 'Sound on / off' },
 	{ keys: ['H'], label: 'Show these controls' }
 ] as const;

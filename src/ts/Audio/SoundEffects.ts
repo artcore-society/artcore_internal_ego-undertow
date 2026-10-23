@@ -1,6 +1,6 @@
+import type { Vector3 } from 'three';
 import type AudioEngine from './AudioEngine.ts';
 
-/** One-shot sounds, synthesised on demand. */
 /** [from Hz, to Hz, offset s, duration s]: one sweep of a whale's song. */
 export type WhalePhrase = readonly [number, number, number, number];
 
@@ -27,6 +27,7 @@ export const WHALE_SONG = {
 	]
 } as const satisfies Record<string, readonly WhalePhrase[]>;
 
+/** One-shot sounds, synthesised on demand. */
 export default class SoundEffects {
 	private readonly _engine: AudioEngine;
 
@@ -186,9 +187,17 @@ export default class SoundEffects {
 		);
 	}
 
+	/** The sonar: a clean, high ping into the dark, and a fainter echo coming back. */
+	public ping(): void {
+		this.tone(1480, 0, 0.9, 0.05);
+		this.tone(1480, 0.03, 1.4, 0.018);
+		this.tone(1320, 0.85, 1.6, 0.014);
+	}
+
 	/** Old timber and iron settling: a slow, pitch-bending groan from the wreck. */
-	public creak(): void {
-		const { context, effects: master } = this._engine;
+	public creak(at?: Readonly<Vector3>): void {
+		const { context } = this._engine;
+		const master = this.output(at);
 
 		if (!context || !master) {
 			return;
@@ -216,8 +225,9 @@ export default class SoundEffects {
 	}
 
 	/** Something enormous far below: a slow subsonic groan. */
-	public groan(): void {
-		const { context, effects: master } = this._engine;
+	public groan(at?: Readonly<Vector3>): void {
+		const { context } = this._engine;
+		const master = this.output(at);
 
 		if (!context || !master) {
 			return;
@@ -273,8 +283,9 @@ export default class SoundEffects {
 	 * overtone sings along with every phrase.
 	 * @param phrases [from Hz, to Hz, offset s, duration s] each
 	 */
-	public whaleSong(phrases: readonly WhalePhrase[] = WHALE_SONG.distant, level = 0.11): void {
-		const { context, effects: master } = this._engine;
+	public whaleSong(phrases: readonly WhalePhrase[] = WHALE_SONG.distant, level = 0.11, at?: Readonly<Vector3>): void {
+		const { context } = this._engine;
+		const master = this.output(at);
 
 		if (!context || !master) {
 			return;
@@ -336,6 +347,11 @@ export default class SoundEffects {
 			},
 			(end + 7) * 1000
 		);
+	}
+
+	/** Where a sound goes: placed at a point in the water, or everywhere at once. */
+	private output(at?: Readonly<Vector3>): AudioNode | null {
+		return at ? this._engine.at(at) : this._engine.effects;
 	}
 
 	private tone(frequency: number, offset: number, duration: number, level: number): void {

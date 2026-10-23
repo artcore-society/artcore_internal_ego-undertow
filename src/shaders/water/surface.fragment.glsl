@@ -1,6 +1,7 @@
 #include ../includes/caustics.glsl
 #include ../includes/noise.glsl
 #include ../includes/sunset.glsl
+#include ../includes/bell.glsl
 
 uniform float uTime;
 uniform vec3 uWaterColor;
@@ -33,13 +34,28 @@ float bolt(vec2 disk) {
 	float lateral = dot(disk, across);
 
 	float jag = simplex(vec2(s * 9.0, uBoltSeed)) * 0.035 + simplex(vec2(s * 31.0, uBoltSeed + 4.0)) * 0.012;
-	float trunk = exp(-pow((lateral - jag) / 0.006, 2.0)) * smoothstep(0.25, 0.32, s) * (1.0 - smoothstep(0.96, 1.02, s));
+	float trunk = bell((lateral - jag) / 0.006) * smoothstep(0.25, 0.32, s) * (1.0 - smoothstep(0.96, 1.02, s));
 
 	float forkS = s - 0.55;
-	float fork = exp(-pow((lateral - jag - forkS * 0.35 - simplex(vec2(s * 23.0, uBoltSeed + 9.0)) * 0.01) / 0.004, 2.0))
+	float fork = bell((lateral - jag - forkS * 0.35 - simplex(vec2(s * 23.0, uBoltSeed + 9.0)) * 0.01) / 0.004)
 		* step(0.0, forkS) * (1.0 - smoothstep(0.25, 0.35, forkS));
 
 	return trunk + fork * 0.7;
+}
+
+/**
+ * Rain on the surface, seen from below: every cell (p in cells) a drop landing on its own beat, its
+ * ring spreading and fading. Returns the ring's outward slope (xy) and its strength (z).
+ */
+vec3 raindrop(vec2 p) {
+	vec2 cell = floor(p);
+	float seed = fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453);
+	vec2 offset = fract(p) - 0.5 - (vec2(fract(seed * 13.3), fract(seed * 7.7)) - 0.5) * 0.5;
+	float age = fract(uTime * 0.9 + seed);
+	float spread = length(offset);
+	float ring = bell((spread - age * 0.4) / 0.03) * (1.0 - age) * (1.0 - age);
+
+	return vec3(offset / max(spread, 1e-3) * ring, ring);
 }
 
 /** Height of the surface waves; its gradient bends the view like refraction does. */
@@ -60,6 +76,11 @@ void main() {
 	// Wave normal from the height field's slope
 	vec2 e = vec2(0.6, 0.0);
 	vec2 slope = vec2(waves(vWorld.xz + e.xy) - waves(vWorld.xz - e.xy), waves(vWorld.xz + e.yx) - waves(vWorld.xz - e.yx)) / (2.0 * e.x);
+
+	// While the storm lasts, rain dimples the surface overhead (only close by: far off it would shimmer)
+	float rainAmount = (1.0 - uCalm) * (1.0 - smoothstep(8.0, 30.0, viewDistance));
+	vec3 rain = rainAmount > 0.0 ? raindrop(vWorld.xz * 1.4) * rainAmount : vec3(0.0);
+	slope += rain.xy * 0.12;
 	vec3 refracted = normalize(view + vec3(slope.x, 0.0, slope.y) * 0.55);
 
 	// Snell's window (~48° cone overhead): the bright sky; outside it the surface mirrors the deep
@@ -88,10 +109,11 @@ void main() {
 
 	// Where a close strike hits the water: a white-hot patch and a ring spreading out from it
 	float impactDistance = length(vWorld.xz - uImpact);
-	float ring = exp(-pow((impactDistance - uImpactAge * 22.0) / 2.5, 2.0)) * exp(-uImpactAge * 1.4);
+	float ring = bell((impactDistance - uImpactAge * 22.0) / 2.5) * exp(-uImpactAge * 1.4);
 	mirrored += vec3(0.85, 0.92, 1.0) * (exp(-impactDistance * impactDistance / 60.0) * uFlash * 5.0 + ring * 1.2);
 
 	vec3 color = mix(mirrored, sky, window) + uDownwellColor * rim * 0.8;
+	color += uDownwellColor * rain.z * 0.08;
 	color *= uBrightness;
 
 	// Fade into the same gradient as the backdrop; at grazing angles the surface dissolves completely,

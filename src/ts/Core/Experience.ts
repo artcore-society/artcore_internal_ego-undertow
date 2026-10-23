@@ -15,6 +15,7 @@ import { composePostcard } from '../Services/Postcard.ts';
 import { WHALE_SONG } from '../Audio/SoundEffects.ts';
 import EnvironmentDirector from '../Environment/EnvironmentDirector.ts';
 import Storm from '../Environment/Storm.ts';
+import LightSignal from '../World/Effects/LightSignal.ts';
 import JourneyDirector from '../Journey/JourneyDirector.ts';
 import JourneyScript, { type IJourneyActions } from '../Journey/JourneyScript.ts';
 import EventBus from '../Services/EventBus.ts';
@@ -28,6 +29,7 @@ import { SOUND_NAMES } from '../Config/assets.ts';
 import { GamePhase } from '../Enums/GamePhase.ts';
 import type { ExperienceEventMap, IHotspotView, ISignalView } from '../Enums/ExperienceEvent.ts';
 import type { ICaption } from '../Journey/IJourney.ts';
+import type { QualityMode } from '../Services/Preferences.ts';
 import type { ITrailSpot } from '../World/Effects/LightTrail.ts';
 import type IDisposable from '../Contracts/IDisposable.ts';
 import type IFrameContext from '../Contracts/IFrameContext.ts';
@@ -39,6 +41,9 @@ import type IFrameContext from '../Contracts/IFrameContext.ts';
 export default class Experience implements IDisposable {
 	private static readonly TELEMETRY_INTERVAL = 1 / 30;
 	private static readonly BREATH_SECONDS = 5.5;
+	/** Depth (m) where the weight of the water starts to tell, and where it's at its heaviest. */
+	private static readonly PRESSURE_FROM = 25;
+	private static readonly PRESSURE_FULL = 170;
 	/** Mara's "follow the light, little fish": her trail appears from here. */
 	private static readonly TRAIL_FROM = 0.18;
 	/** Metres kept clear of rocks and coral around the camera's path. */
@@ -48,6 +53,21 @@ export default class Experience implements IDisposable {
 	/** Once followed, the whale leads this far ahead of the camera until the temple comes into sight. */
 	private static readonly WHALE_LEAD = 14;
 	private static readonly WHALE_RELEASE = 0.665;
+	/** At the edge of the drop the dive slows and the world falls quiet: only breathing is left. */
+	private static readonly DROP_FROM = 0.522;
+	private static readonly DROP_TO = 0.532;
+	private static readonly DROP_PACE = 0.3;
+	/** While her last log plays, Mara's light drifts this far ahead of the diver along the path. */
+	private static readonly GHOST_LEAD = 0.012;
+	private static readonly GHOST_LOG = '12-mara-final-log';
+	/** From here until the city wakes, the lamp and Mara's light signal to each other. */
+	private static readonly SIGNAL_FROM = 0.9;
+	/** Seconds after the city wakes before the whale comes back, passing high over the pillar of light. */
+	private static readonly WHALE_RETURN_DELAY = 6;
+	/** It crosses the pillar this far above and beyond the heart (as seen from the diver), on a wide circle. */
+	private static readonly WHALE_RETURN_HEIGHT = 12;
+	private static readonly WHALE_RETURN_BEYOND = 25;
+	private static readonly WHALE_RETURN_RADIUS = 60;
 	/** Seconds from the credits up through the surface. */
 	private static readonly RISE_SECONDS = 5.5;
 	/** Fraction of the rise spent gliding up under the surface before kicking through it. */
@@ -70,9 +90,11 @@ export default class Experience implements IDisposable {
 	private readonly _sound = new SoundDirector();
 	private readonly _environment = new EnvironmentDirector();
 	private readonly _storm = new Storm();
+	private readonly _signal = new LightSignal();
 	private readonly _projected = new Vector3();
 	private readonly _forward = new Vector3();
 	private readonly _local = new Vector3();
+	private readonly _ghostTarget = new Vector3();
 	private readonly _unsubscribers: (() => void)[] = [];
 	private _world: World | null = null;
 	private _probe: LightProbe | null = null;
@@ -86,9 +108,17 @@ export default class Experience implements IDisposable {
 	/** Waiting for the next rendered frame (read straight after it's drawn: the buffer isn't kept). */
 	private _frameRequests: ((canvas: HTMLCanvasElement) => void)[] = [];
 	private _isWhaleLeading = false;
+	/** Skipping chapters: the stops passed over run their actions, but quietly. */
+	private _isSkipping = false;
+	/** The diver has seen the city wake before (this visit or an earlier one): it remembers them. */
+	private _isRemembered = false;
+	/** Seconds until the whale comes back over the waking city; negative when it isn't due. */
+	private _whaleReturn = -1;
 	private _lastProgress = 0;
 	private _fade = 0;
 	private _calm = 0;
+	/** 0..1 the weight of the water: it eases once Atlantis is awake. */
+	private _pressure = 0;
 	private _breath = 0;
 	private _telemetryTimer = 0;
 	private _hadHotspot = false;
@@ -117,7 +147,8 @@ export default class Experience implements IDisposable {
 
 		this._unsubscribers.push(
 			this._scroll.onShortcut('m', () => this.toggleMute()),
-			this._scroll.onShortcut('h', () => this.events.emit('help', undefined))
+			this._scroll.onShortcut('h', () => this.events.emit('help', undefined)),
+			this._scroll.onShortcut('p', () => this.ping())
 		);
 		this._storm.onStrike((strike) => {
 			this._sound.effects.thunder(strike.distance);
@@ -168,6 +199,7 @@ export default class Experience implements IDisposable {
 		});
 
 		camera.add(this._lamp);
+		camera.current = world.water.current.value;
 		world.scene.add(camera);
 		world.clearPath(this.pathPoints(journey), Experience.PATH_CLEARANCE);
 		world.layTrail(this.trailSpots(journey)).onGather((count) => {
@@ -179,9 +211,16 @@ export default class Experience implements IDisposable {
 		this._world = world;
 		// The waking light chimes as it reaches the gates, the far temples, the shrines: rising notes
 		world.atlantis.onWakeMilestone((index) => this._sound.effects.chime(index * 2 + 2));
+		this._sound.place({
+			whale: () => world.passage.whale.position,
+			wreck: () => world.wreck.origin,
+			temple: () => world.temple.origin,
+			atlantis: () => world.atlantis.plaza
+		});
 		this._camera = camera;
 		this._journey = journey;
 		this._post = new PostProcessing(this._renderer, world.scene, camera);
+		this._post.isBloomEnabled = this._quality.mode !== 'low';
 
 		this._viewport.subscribe(this._renderer);
 		this._viewport.subscribe(camera);
@@ -219,15 +258,17 @@ export default class Experience implements IDisposable {
 		this._sound.voices.stop();
 		world.reef.reset();
 		world.temple.reset();
-		world.atlantis.reset();
+		world.atlantis.reset(this._isRemembered);
 		world.passage.whale.reset();
 		world.trail?.reset();
 		this._environment.setIlluminated(false, true);
 		this._isWhaleLeading = false;
+		this._whaleReturn = -1;
 		this._maxDepth = 0;
 		this._diveSeconds = 0;
 		this._fade = 0;
 		this._calm = 0;
+		this._pressure = 0;
 		this._storm.calm(false);
 		this._surfacing = -1;
 		this._wasAbove = false;
@@ -280,6 +321,47 @@ export default class Experience implements IDisposable {
 		});
 	}
 
+	/** Auto (resolution follows the frame rate), always full resolution, or low (also no bloom). */
+	public setQuality(mode: QualityMode): void {
+		this._quality.mode = mode;
+
+		if (this._post) {
+			this._post.isBloomEnabled = mode !== 'low';
+		}
+	}
+
+	/** A diver who has woken the city before: on the next dive it waits for them already glowing faintly. */
+	public set isRemembered(value: boolean) {
+		this._isRemembered = value;
+	}
+
+	/** Cuts to a point in the journey (a chapter's start); what lies before it happens without a sound. */
+	public jumpTo(progress: number): void {
+		const journey = this._journey;
+
+		if (this._phase !== GamePhase.JOURNEY || !journey) {
+			return;
+		}
+
+		this._isSkipping = true;
+		journey.jumpTo(progress);
+		this._isSkipping = false;
+		this._lastProgress = journey.progress;
+
+		if (progress > Experience.TRAIL_FROM) {
+			this._world?.trail?.reveal(Experience.TRAIL_FROM);
+		}
+	}
+
+	/** Sends a sonar ping out from the diver (P, or a tap on the sonar). */
+	public ping(): void {
+		const camera = this._camera;
+
+		if (this._phase === GamePhase.JOURNEY && camera && this._world?.sonar.ping(camera.position)) {
+			this._sound.effects.ping();
+		}
+	}
+
 	/** Uses the hotspot the journey is waiting at. */
 	public activateStop(): void {
 		this._journey?.activate();
@@ -310,6 +392,11 @@ export default class Experience implements IDisposable {
 		this._phase = phase;
 		// The ending plays itself: no scrolling past the credits
 		this._scroll.enabled = phase === GamePhase.JOURNEY;
+
+		if (phase === GamePhase.FINISHED) {
+			this._isRemembered = true;
+		}
+
 		this.events.emit('phaseChanged', phase);
 	}
 
@@ -319,19 +406,20 @@ export default class Experience implements IDisposable {
 		return {
 			receiveSignal: () => {
 				world()?.reef.receiveSignal();
-				this._sound.effects.discovery();
+				this.effect(() => this._sound.effects.discovery());
 			},
-			playLog: () => this._sound.effects.discovery(),
+			playLog: () => this.effect(() => this._sound.effects.discovery()),
 			followWhale: () => {
 				this._isWhaleLeading = true;
-				this._sound.effects.whaleSong(WHALE_SONG.greeting, 0.2);
+				this.effect(() => this._sound.effects.whaleSong(WHALE_SONG.greeting, 0.2, world()?.passage.whale.position));
 			},
 			wakeTemple: () => {
 				world()?.temple.wake();
-				this._sound.effects.rumble();
+				this.effect(() => this._sound.effects.rumble());
 			},
 			wakeCity: () => {
 				world()?.atlantis.awaken();
+				this._whaleReturn = Experience.WHALE_RETURN_DELAY;
 				this._environment.setIlluminated(true);
 				this._sound.effects.discovery();
 				// The storm passes: by the time you surface, it's a calm sunset
@@ -340,9 +428,31 @@ export default class Experience implements IDisposable {
 		};
 	}
 
+	/** A story sound, unless the stop it belongs to is being skipped over. */
+	private effect(play: () => void): void {
+		if (!this._isSkipping) {
+			play();
+		}
+	}
+
 	private onCaption(caption: ICaption | null): void {
+		const world = this._world;
+
 		if (caption?.id === '05-mara-follow-the-light') {
-			this._world?.trail?.reveal(caption.from);
+			world?.trail?.reveal(caption.from);
+		}
+
+		// Her last log: the recorder glows and her light rises from it to lead the way for a while
+		const isLog = caption?.id === Experience.GHOST_LOG;
+
+		if (world && isLog !== world.wreck.isPlaying) {
+			world.wreck.isPlaying = isLog;
+
+			if (isLog) {
+				world.ghost.appear(world.wreck.recorder);
+			} else {
+				world.ghost.leave();
+			}
 		}
 
 		this.events.emit(
@@ -394,15 +504,24 @@ export default class Experience implements IDisposable {
 			return;
 		}
 
-		const pace = this._sound.voices.isSpeaking ? Experience.LISTENING_PACE : 1;
+		const isAtDrop = journey.progress > Experience.DROP_FROM && journey.progress < Experience.DROP_TO;
+		const pace =
+			(this._sound.voices.isSpeaking ? Experience.LISTENING_PACE : 1) * (isAtDrop ? Experience.DROP_PACE : 1);
 		journey.scroll(this._scroll.consume() * pace);
+		this._sound.isHushed = isAtDrop && this._phase === GamePhase.JOURNEY;
 		journey.update(frame.delta);
 		camera.isFree = journey.activeStop !== null || this._phase === GamePhase.SURFACED;
 		camera.follow(this._surfacing < 0 ? journey.sample : this.rise(frame.delta), frame);
 		this.breakSurface(camera.position.y > SURFACE_Y);
 		this.guideWhale(journey.progress, camera);
+		this.returnWhale(frame.delta);
 
 		world.simulate(frame, camera.position, journey.progress);
+		if (world.ghost.isPresent || world.ghost.visible) {
+			// Copied out: the rail hands back one shared sample (the camera's)
+			this._ghostTarget.copy(journey.rail.sample(Math.min(1, journey.progress + Experience.GHOST_LEAD)).position);
+			world.ghost.update(this._ghostTarget, frame.elapsed, frame.delta);
+		}
 		world.syncToCamera(camera, frame);
 
 		const depth = SURFACE_Y - camera.position.y;
@@ -413,13 +532,24 @@ export default class Experience implements IDisposable {
 		}
 
 		this._environment.update(depth, world.shelterAt(camera.position), frame.delta);
-		this._lamp.update(this._environment.darkness, frame.delta);
+		this._signal.update(
+			journey.progress > Experience.SIGNAL_FROM && !world.atlantis.isAwake && this._phase === GamePhase.JOURNEY,
+			frame.delta
+		);
+		this._lamp.flash = this._signal.call;
+		world.atlantis.answer = this._signal.answer;
+		this._lamp.update(this._environment.darkness, camera.pointer, frame.delta);
 		this._storm.update(depth, frame.delta);
 		world.flash = this._storm.flash;
 		this._calm = damp(this._calm, world.atlantis.isAwake ? 1 : 0, 0.25, frame.delta);
 		world.surface.calm = this._calm;
 		post.lamp = this._lamp.level;
+		post.aimLamp(this._lamp.aim.x, this._lamp.aim.y);
+		this._pressure = damp(this._pressure, this.pressureAt(depth), 0.5, frame.delta);
+		post.pressure = this._pressure;
 		this.breathe(camera, frame.delta);
+		camera.getWorldDirection(this._forward);
+		this._sound.listen(camera.position, this._forward);
 		this._sound.update(depth, world.sceneWeights(camera.position), frame.delta);
 		this._quality.update(frame.delta);
 		this.publishTelemetry(journey, camera, depth, frame.delta);
@@ -502,21 +632,65 @@ export default class Experience implements IDisposable {
 
 		if (progress > Experience.WHALE_RELEASE) {
 			if (whale.depart()) {
-				this._sound.effects.whaleSong(WHALE_SONG.farewell, 0.2);
+				this._sound.effects.whaleSong(WHALE_SONG.farewell, 0.2, whale.position);
 			}
 		} else {
 			whale.leadFrom(camera.position, Experience.WHALE_LEAD);
 		}
 	}
 
-	/** Every few seconds the diver exhales a cloud of bubbles that rises past the view. */
+	/** 0..1 how heavy the water feels at this depth; once Atlantis is awake, the weight lifts. */
+	private pressureAt(depth: number): number {
+		const weight = (depth - Experience.PRESSURE_FROM) / (Experience.PRESSURE_FULL - Experience.PRESSURE_FROM);
+
+		return Math.min(1, Math.max(0, weight)) * (1 - this._calm);
+	}
+
+	/**
+	 * The whale comes back once the city is awake: out of the murk to one side, then across the view,
+	 * its silhouette passing in front of the pillar of light just beyond the heart, singing.
+	 */
+	private returnWhale(delta: number): void {
+		const world = this._world;
+		const camera = this._camera;
+
+		if (this._whaleReturn < 0 || !world || !camera) {
+			return;
+		}
+
+		this._whaleReturn -= delta;
+
+		if (this._whaleReturn < 0) {
+			const { heart } = world.atlantis;
+			const radius = Experience.WHALE_RETURN_RADIUS;
+			// Away from the diver, level: where the crossing point lies beyond the heart
+			const away = this._local.copy(heart).sub(camera.position).setY(0).normalize();
+			const crossing = heart
+				.clone()
+				.addScaledVector(away, Experience.WHALE_RETURN_BEYOND)
+				.setY(heart.y + Experience.WHALE_RETURN_HEIGHT);
+			// The circle's centre lies further on, so at the crossing it swims across the view
+			const centre = crossing.clone().addScaledVector(away, radius);
+			const atCrossing = Math.atan2(-away.z, -away.x);
+			// Starts out in the murk, some 11 s from the crossing
+			world.passage.whale.returnTo(centre, radius, atCrossing - 0.8, 0.07);
+			this._sound.effects.whaleSong(WHALE_SONG.greeting, 0.2, world.passage.whale.position);
+		}
+	}
+
+	/**
+	 * Every few seconds the diver exhales a cloud of bubbles that rises past the view. Deep down the
+	 * breaths come slower and heavier.
+	 */
 	private breathe(camera: RailCamera, delta: number): void {
 		if (this._phase !== GamePhase.JOURNEY) {
 			return;
 		}
 
 		const previous = this._breath;
-		this._breath = (this._breath + delta / Experience.BREATH_SECONDS) % 1;
+		const seconds = Experience.BREATH_SECONDS * (1 + this._pressure * 0.45);
+		const level = 1 + this._pressure * 0.7;
+		this._breath = (this._breath + delta / seconds) % 1;
 
 		if (previous < 0.55 && this._breath >= 0.55) {
 			camera.getWorldDirection(this._forward);
@@ -525,9 +699,9 @@ export default class Experience implements IDisposable {
 				.addScaledVector(this._forward, 0.9)
 				.add(new Vector3(0, -0.55, 0));
 			this._world?.bubbles.burst(this._projected, 9);
-			this._sound.effects.exhale(0.6);
+			this._sound.effects.exhale(0.6 * level);
 		} else if (this._breath < previous) {
-			this._sound.effects.inhale(0.5);
+			this._sound.effects.inhale(0.5 * level);
 		}
 	}
 
