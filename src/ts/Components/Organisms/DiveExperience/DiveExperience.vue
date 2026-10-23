@@ -31,17 +31,15 @@ const {
 	savePostcard,
 	ping,
 	quality,
-	captions,
+	hasCaptions,
 	isReturning,
 	cycleQuality,
-	cycleCaptions,
+	toggleCaptions,
 	jumpTo
 } = useExperience(canvas);
 
-/** Captions as chosen: always, only while the sound is off, or never (the voices still play). */
-const shownCaption = computed(() =>
-	captions.value === 'always' || (captions.value === 'muted' && isMuted.value) ? caption.value : null
-);
+/** The comms cards, unless captions are switched off (the voices play either way). */
+const shownCaption = computed(() => (hasCaptions.value ? caption.value : null));
 
 const isEnding = computed(() => phase.value === GamePhase.FINISHED || phase.value === GamePhase.SURFACED);
 /** While the dive pauses (and on the sea at the end) the view can be dragged around: an open hand, closed while dragging. */
@@ -101,11 +99,11 @@ const isGrabbing = ref(false);
 			v-if="phase !== GamePhase.LOADING"
 			:is-muted="isMuted"
 			:quality="quality"
-			:captions="captions"
+			:has-captions="hasCaptions"
 			@toggle-mute="toggleMute"
 			@help="toggleHelp(true)"
 			@cycle-quality="cycleQuality"
-			@cycle-captions="cycleCaptions"
+			@toggle-captions="toggleCaptions"
 		/>
 
 		<Transition name="fade">

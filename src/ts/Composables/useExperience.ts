@@ -11,13 +11,7 @@ import {
 import Experience from '../Core/Experience.ts';
 import { GamePhase } from '../Enums/GamePhase.ts';
 import { downloadPostcard } from '../Services/Postcard.ts';
-import {
-	CAPTION_MODES,
-	QUALITY_MODES,
-	preferences,
-	type CaptionMode,
-	type QualityMode
-} from '../Services/Preferences.ts';
+import { QUALITY_MODES, preferences, type QualityMode } from '../Services/Preferences.ts';
 import type { IChapterView, ICaptionView, IHotspotView, IStopView, ITelemetry } from '../Enums/ExperienceEvent.ts';
 
 export interface IExperienceBindings {
@@ -45,11 +39,12 @@ export interface IExperienceBindings {
 	/** Sends a sonar ping out through the water. */
 	ping(): void;
 	readonly quality: Readonly<Ref<QualityMode>>;
-	readonly captions: Readonly<Ref<CaptionMode>>;
+	/** Whether the comms cards (subtitles) show; the voices play either way. */
+	readonly hasCaptions: Readonly<Ref<boolean>>;
 	/** Someone who has been all the way down before (they may skip chapters; the deep remembers them). */
 	readonly isReturning: Readonly<Ref<boolean>>;
 	cycleQuality(): void;
-	cycleCaptions(): void;
+	toggleCaptions(): void;
 	/** Cuts to a chapter, from its start (0..1). */
 	jumpTo(progress: number): void;
 }
@@ -71,7 +66,7 @@ export function useExperience(canvas: Ref<HTMLCanvasElement | null>): IExperienc
 	const stop = ref<IStopView | null>(null);
 	const isHelpOpen = ref(false);
 	const quality = ref<QualityMode>(preferences.quality());
-	const captions = ref<CaptionMode>(preferences.captions());
+	const hasCaptions = ref(preferences.hasCaptions());
 	const isReturning = ref(preferences.dives() > 0);
 	const hotspot = shallowRef<IHotspotView | null>(null);
 	// Replaced wholesale 30 times a second: a shallow ref avoids deep-proxying every telemetry object
@@ -152,16 +147,16 @@ export function useExperience(canvas: Ref<HTMLCanvasElement | null>): IExperienc
 		toggleHelp: (open) => (isHelpOpen.value = open ?? !isHelpOpen.value),
 		ping: () => experience.value?.ping(),
 		quality: readonly(quality),
-		captions: readonly(captions),
+		hasCaptions: readonly(hasCaptions),
 		isReturning: readonly(isReturning),
 		cycleQuality: () => {
 			quality.value = next(QUALITY_MODES, quality.value);
 			preferences.setQuality(quality.value);
 			experience.value?.setQuality(quality.value);
 		},
-		cycleCaptions: () => {
-			captions.value = next(CAPTION_MODES, captions.value);
-			preferences.setCaptions(captions.value);
+		toggleCaptions: () => {
+			hasCaptions.value = !hasCaptions.value;
+			preferences.setCaptions(hasCaptions.value);
 		},
 		jumpTo: (progress) => experience.value?.jumpTo(progress),
 		savePostcard: async () => {

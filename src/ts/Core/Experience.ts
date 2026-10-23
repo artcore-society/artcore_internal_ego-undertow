@@ -57,8 +57,6 @@ export default class Experience implements IDisposable {
 	private static readonly DROP_FROM = 0.522;
 	private static readonly DROP_TO = 0.532;
 	private static readonly DROP_PACE = 0.3;
-	/** Mara's last log: the recorder glows steadily while it plays. */
-	private static readonly LAST_LOG = '12-mara-final-log';
 	/** From here until the city wakes, the lamp and Mara's light signal to each other. */
 	private static readonly SIGNAL_FROM = 0.9;
 	/** Seconds after the city wakes before the whale comes back, passing high over the pillar of light. */
@@ -446,10 +444,6 @@ export default class Experience implements IDisposable {
 
 		if (caption?.id === '05-mara-follow-the-light') {
 			world?.trail?.reveal(caption.from);
-		}
-
-		if (world) {
-			world.wreck.isPlaying = caption?.id === Experience.LAST_LOG;
 		}
 
 		this.events.emit(

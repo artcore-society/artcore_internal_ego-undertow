@@ -5,10 +5,6 @@ const PREFIX = 'undertow:';
 export const QUALITY_MODES = ['auto', 'high', 'low'] as const;
 export type QualityMode = (typeof QUALITY_MODES)[number];
 
-/** Captions always, only while the sound is off, or never. */
-export const CAPTION_MODES = ['always', 'muted', 'never'] as const;
-export type CaptionMode = (typeof CAPTION_MODES)[number];
-
 function read(name: string): string | null {
 	try {
 		return localStorage.getItem(PREFIX + name);
@@ -34,8 +30,9 @@ function choice<TValue extends string>(name: string, allowed: readonly TValue[],
 export const preferences = {
 	quality: (): QualityMode => choice('quality', QUALITY_MODES, 'auto'),
 	setQuality: (mode: QualityMode): void => write('quality', mode),
-	captions: (): CaptionMode => choice('captions', CAPTION_MODES, 'always'),
-	setCaptions: (mode: CaptionMode): void => write('captions', mode),
+	/** Captions on unless switched off ('never' is how an earlier version stored off). */
+	hasCaptions: (): boolean => !['off', 'never'].includes(read('captions') ?? ''),
+	setCaptions: (isOn: boolean): void => write('captions', isOn ? 'on' : 'off'),
 	/** Dives followed all the way to the end. */
 	dives: (): number => Number(read('dives')) || 0,
 	addDive: (): void => write('dives', String(preferences.dives() + 1)),

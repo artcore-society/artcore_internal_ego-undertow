@@ -2,23 +2,22 @@
 import Action from '../../Atoms/Action/Action.vue';
 import Text from '../../Atoms/Text/Text.vue';
 import SoundBars from '../../Atoms/SoundBars/SoundBars.vue';
-import type { CaptionMode, QualityMode } from '../../../Services/Preferences.ts';
+import type { QualityMode } from '../../../Services/Preferences.ts';
 
 defineProps<{
 	isMuted: boolean;
 	quality: QualityMode;
-	captions: CaptionMode;
+	hasCaptions: boolean;
 }>();
 
 defineEmits<{
 	toggleMute: [];
 	help: [];
 	cycleQuality: [];
-	cycleCaptions: [];
+	toggleCaptions: [];
 }>();
 
 const QUALITY_LABELS: Readonly<Record<QualityMode, string>> = { auto: 'Auto', high: 'High', low: 'Low' };
-const CAPTION_LABELS: Readonly<Record<CaptionMode, string>> = { always: 'On', muted: 'Muted', never: 'Off' };
 </script>
 
 <template>
@@ -28,11 +27,11 @@ const CAPTION_LABELS: Readonly<Record<CaptionMode, string>> = { always: 'On', mu
 			<Action variant="ghost" aria-label="Controls" @click="$emit('help')">?</Action>
 			<Action
 				variant="ghost"
-				:aria-label="`Captions: ${CAPTION_LABELS[captions]}`"
-				title="Captions: always, only when the sound is off, or never"
-				@click="$emit('cycleCaptions')"
+				:aria-pressed="hasCaptions"
+				title="Subtitles on or off (the voices keep playing)"
+				@click="$emit('toggleCaptions')"
 			>
-				CC {{ CAPTION_LABELS[captions] }}
+				CC {{ hasCaptions ? 'On' : 'Off' }}
 			</Action>
 			<Action
 				variant="ghost"
