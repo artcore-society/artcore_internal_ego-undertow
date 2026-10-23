@@ -26,20 +26,15 @@ yarn lint       # eslint (strict TS rules) + prettier
 
 ### Assets
 
-The compressed assets are committed in `public/assets`. To rebuild them from source:
+`public/assets` holds the final assets (sources in CREDITS.md). Models are authored in the frame the experience
+places them in, so code only loads and places them:
 
-```bash
-yarn assets:fetch            # CC0 sources from Poly Haven and Khronos into assets-src/ (gitignored)
-# + unzip the hand-downloaded Sketchfab models into assets-src/models/<name>/ (see scripts/assets.config.mjs)
-yarn assets:build            # simplify + meshopt-compress meshes, WebP textures → public/assets
-```
+- props stand on y = 0, centred on their footprint; buildings and statues face +Z;
+- swimmers are centred on their body, head towards -Z, at their length in metres (fish 1, whale 15, turtle 1.3);
+- the wreck lies along Z, 30 m long, without its sails; a kit of separate objects (the rune stones) has one mesh per
+  object.
 
-### Voices
-
-```bash
-yarn narration:export ~/Downloads     # voice script (.md + .csv) from src/ts/Journey/narration.ts
-yarn voices:import <export folder>    # ElevenLabs "Paragraphs ZIP" → clean, trimmed public/assets/voice/*.mp3
-```
+Meshes are meshopt-compressed (load with three's `MeshoptDecoder`), textures are WebP.
 
 ## Controls
 

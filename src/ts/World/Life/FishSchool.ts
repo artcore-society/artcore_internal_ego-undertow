@@ -1,5 +1,4 @@
 import {
-	Box3,
 	Color,
 	InstancedBufferAttribute,
 	InstancedBufferGeometry,
@@ -34,30 +33,9 @@ export interface IFishSchoolOptions {
 
 /**
  * A school of fish in one draw call: one textured fish model, instanced, each swimming its own orbit
- * in the vertex shader. Build the template once with `FishSchool.template()` and share it.
+ * in the vertex shader. The template is the fish model as authored: centred, 1 unit long, head towards -Z.
  */
 export default class FishSchool extends Mesh<InstancedBufferGeometry, MeshStandardMaterial> implements IDisposable {
-	/**
-	 * Normalises a fish model for the swim shader: centred, 1 unit long, head towards -Z, tail at +Z.
-	 * @param headTowardsPositiveZ how the source model is oriented
-	 */
-	public static template(part: IModelPart, headTowardsPositiveZ: boolean): IModelPart {
-		const geometry = part.geometry.clone();
-		geometry.computeBoundingBox();
-		const box = geometry.boundingBox ?? new Box3();
-		const centre = box.getCenter(new Vector3());
-		const size = box.getSize(new Vector3());
-
-		geometry.translate(-centre.x, -centre.y, -centre.z);
-		geometry.scale(1 / size.z, 1 / size.z, 1 / size.z);
-
-		if (headTowardsPositiveZ) {
-			geometry.rotateY(Math.PI);
-		}
-
-		return { geometry, material: part.material };
-	}
-
 	constructor(water: WaterUniforms, patches: LifePatches, template: IModelPart, options: IFishSchoolOptions) {
 		const geometry = new InstancedBufferGeometry().copy(template.geometry as InstancedBufferGeometry);
 		const random = new SeededRandom(options.seed);

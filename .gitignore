@@ -23,5 +23,3 @@ dist-ssr
 *.sln
 *.sw?
 
-# Raw CC0 source assets (yarn assets:fetch)
-assets-src

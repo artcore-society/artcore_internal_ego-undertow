@@ -1,4 +1,4 @@
-import { Box3, Color, Euler, Group, Mesh, MeshBasicMaterial, SphereGeometry, Vector3 } from 'three';
+import { Color, Euler, Mesh, MeshBasicMaterial, SphereGeometry, Vector3 } from 'three';
 import DiveScene from './DiveScene.ts';
 import { SCENES } from '../../Config/world.ts';
 import { SceneId } from '../../Enums/SceneId.ts';
@@ -10,7 +10,6 @@ import type IFrameContext from '../../Contracts/IFrameContext.ts';
  * Her recorder lies in the sand by the hull, still blinking.
  */
 export default class WreckScene extends DiveScene {
-	private static readonly LENGTH = 30;
 	private static readonly YAW = 0.45;
 	private static readonly ROLL = 0.55;
 
@@ -117,33 +116,12 @@ export default class WreckScene extends DiveScene {
 		return [this.origin.x + point.x, this.origin.z + point.z];
 	}
 
-	/** The galleon: sails removed, fitted to its length, rolled onto its side and sunk into the silt. */
+	/** The galleon (authored 30 m long, keel along Z): rolled onto its side, turned and sunk into the silt. */
 	private buildShip(): void {
 		const ship = this.context.assets.model('dutch_ship_medium');
 
-		ship.traverse((child) => {
-			if (child.name.toLowerCase().includes('sail')) {
-				child.visible = false;
-			}
-		});
-
-		const box = new Box3().setFromObject(ship);
-		const size = box.getSize(new Vector3());
-		const alongX = size.x >= size.z;
-		const scale = WreckScene.LENGTH / Math.max(size.x, size.z);
-
-		ship.scale.setScalar(scale);
-		ship.position.set(-(box.min.x + size.x / 2) * scale, -box.min.y * scale, -(box.min.z + size.z / 2) * scale);
-
-		// Roll around the keel, then turn the whole wreck; sink it a little into the sand
-		const roll = new Group();
-		roll.add(ship);
-		roll.rotation.set(alongX ? WreckScene.ROLL : 0, alongX ? Math.PI / 2 : 0, alongX ? 0 : WreckScene.ROLL, 'YXZ');
-
-		const wreck = new Group();
-		wreck.add(roll);
-		wreck.position.copy(this.origin).setY(this.origin.y - 2.2);
-		wreck.rotation.y = WreckScene.YAW;
-		this.add(wreck);
+		ship.position.copy(this.origin).setY(this.origin.y - 2.2);
+		ship.rotation.set(0, WreckScene.YAW, -WreckScene.ROLL, 'YXZ');
+		this.add(ship);
 	}
 }

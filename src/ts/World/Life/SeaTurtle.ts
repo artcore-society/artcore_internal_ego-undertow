@@ -1,28 +1,22 @@
-import { AnimationMixer, Box3, Group, Vector3, type AnimationClip, type Object3D } from 'three';
+import { AnimationMixer, Group, Vector3, type AnimationClip, type Object3D } from 'three';
 import type IDisposable from '../../Contracts/IDisposable.ts';
 
 /** A sea turtle (rigged model, see CREDITS.md) paddling a slow, rising and falling loop over the reef. */
 export default class SeaTurtle extends Group implements IDisposable {
-	private static readonly LENGTH = 1.3;
-
 	private readonly _mixer: AnimationMixer;
 	private readonly _centre: Vector3;
 	private readonly _radius: number;
 	private readonly _speed: number;
 	private readonly _phase: number;
 
-	/**
-	 * @param model a clone of the turtle model
-	 * @param heading model-space yaw that points the head along -Z
-	 */
+	/** @param model a clone of the turtle model (authored 1.3 m long, head towards -Z) */
 	constructor(
 		model: Object3D,
 		clips: readonly AnimationClip[],
 		centre: Vector3,
 		radius: number,
 		speed: number,
-		phase: number,
-		heading: number
+		phase: number
 	) {
 		super();
 
@@ -31,10 +25,6 @@ export default class SeaTurtle extends Group implements IDisposable {
 		this._speed = speed;
 		this._phase = phase;
 
-		const box = new Box3().setFromObject(model);
-		const size = box.getSize(new Vector3());
-		model.scale.setScalar(SeaTurtle.LENGTH / Math.max(size.x, size.y, size.z));
-		model.rotation.y = heading;
 		this.add(model);
 
 		this._mixer = new AnimationMixer(model);

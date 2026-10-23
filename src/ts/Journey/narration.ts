@@ -1,13 +1,4 @@
-import type { ICaption, Speaker } from './IJourney.ts';
-
-/** Casting notes for each voice; also exported with the voice script for recording. */
-export const VOICES: Readonly<Record<Speaker, string>> = {
-	Kai: 'Male, 30s, warm and steady, a friend on the boat radio. Record clean: the radio filter is added in the experience.',
-	Mara: 'Female, 50s, calm and intimate, a marine biologist speaking into a recorder. Tender, a little weary, never dramatic.',
-	You: 'Young adult, quiet and awed, close to the mic, as if speaking through a regulator. Few words, lots of breath.',
-	'The Deep':
-		'Ageless and genderless, very slow, low and soft, almost a whisper. Record dry: reverb is added in the experience.'
-};
+import type { ICaption } from './IJourney.ts';
 
 /**
  * Every spoken line, in order, with the stretch of the journey (0..1) it plays across.

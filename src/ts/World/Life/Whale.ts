@@ -1,4 +1,4 @@
-import { Box3, CatmullRomCurve3, Group, Mesh, MeshStandardMaterial, Vector3 } from 'three';
+import { CatmullRomCurve3, Group, Mesh, type MeshStandardMaterial, Vector3 } from 'three';
 import { patchMaterial } from '../../Helpers/MaterialPatch.ts';
 import { damp } from '../../Helpers/math.ts';
 import type LifePatches from './LifePatches.ts';
@@ -12,6 +12,7 @@ import type { IModelPart } from '../../Assets/AssetLibrary.ts';
  * of the camera.
  */
 export default class Whale extends Group implements IDisposable {
+	/** The model's length (it is authored centred, head towards -Z): the undulation spans it. */
 	private static readonly LENGTH = 15;
 	private static readonly SAMPLES = 120;
 
@@ -28,7 +29,7 @@ export default class Whale extends Group implements IDisposable {
 	private _pitch = 0;
 	private _roll = 0;
 
-	/** @param part the whale model (as authored: head towards +Z, length along Z) */
+	/** @param part the whale model */
 	constructor(
 		water: WaterUniforms,
 		patches: LifePatches,
@@ -44,20 +45,8 @@ export default class Whale extends Group implements IDisposable {
 		this._path = new CatmullRomCurve3([...path]);
 		this._samples = this._path.getSpacedPoints(Whale.SAMPLES);
 
-		// Centre the body on its middle and fit it to the length the undulation expects
-		const geometry = part.geometry.clone();
-		geometry.computeBoundingBox();
-		const box = geometry.boundingBox ?? new Box3();
-		const centre = box.getCenter(new Vector3());
-		const size = box.getSize(new Vector3());
-		geometry.translate(-centre.x, -centre.y, -centre.z);
-		geometry.scale(Whale.LENGTH / size.z, Whale.LENGTH / size.z, Whale.LENGTH / size.z);
-		// The model's head points to +Z; the swim code and the undulation expect it at -Z
-		geometry.rotateY(Math.PI);
-
 		const material = (part.material as MeshStandardMaterial).clone();
-		material.roughness = 0.55;
-		this._body = new Mesh(geometry, patchMaterial(material, patches.undulate(Whale.LENGTH), water.caustics));
+		this._body = new Mesh(part.geometry, patchMaterial(material, patches.undulate(Whale.LENGTH), water.caustics));
 		this.add(this._body);
 
 		this.position.copy(circleCentre).add(new Vector3(circleRadius, 0, 0));

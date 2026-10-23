@@ -1,4 +1,4 @@
-/** Models in public/assets/models (built by `yarn assets:build`). */
+/** Models in public/assets/models (their frame: see README). */
 export const MODEL_NAMES = [
 	'dutch_ship_medium',
 	'rock_moss_set_01',

@@ -172,7 +172,7 @@ export default abstract class DiveScene extends Group implements IDisposable {
 			readonly isObstacle?: boolean;
 			/** Keep the placement heights as given (e.g. on top of another model) instead of resting on the seabed. */
 			readonly isAboveGround?: boolean;
-			/** Use only this piece of a model that is a set of separate objects (see AssetLibrary.pieces). */
+			/** Use only this part of a kit of separate objects (see AssetLibrary.parts). */
 			readonly piece?: number;
 			readonly material?: { readonly color?: string; readonly patches?: readonly IMaterialPatch[] };
 		} = {}
@@ -183,21 +183,14 @@ export default abstract class DiveScene extends Group implements IDisposable {
 			return materials;
 		}
 
-		const parts =
-			options.piece === undefined
-				? this.context.assets.parts(name)
-				: this.context.assets.pieces(name).filter((_part, index) => index === options.piece);
+		const parts = this.context.assets
+			.parts(name)
+			.filter((_part, index) => options.piece === undefined || index === options.piece);
 		const bounds = new Box3();
 		parts.forEach((part) => {
 			part.geometry.computeBoundingBox();
 			bounds.union(part.geometry.boundingBox ?? new Box3());
 		});
-
-		// Many scans sit off their own origin: centre them on their footprint first, or every rotation
-		// swings them away from the spot that was grounded
-		const offset = bounds.getCenter(new Vector3()).setY(0).negate();
-		parts.forEach((part) => part.geometry.translate(offset.x, 0, offset.z));
-		bounds.translate(offset);
 
 		const dimensions = bounds.getSize(new Vector3());
 		const normalise =
@@ -294,14 +287,12 @@ export default abstract class DiveScene extends Group implements IDisposable {
 		options: { readonly sink?: number; readonly isAboveGround?: boolean } = {}
 	): Object3D {
 		const model = this.context.assets.model(name);
-		const box = new Box3().setFromObject(model);
-		const dimensions = box.getSize(new Vector3());
-		const centre = box.getCenter(new Vector3());
+		const dimensions = new Box3().setFromObject(model).getSize(new Vector3());
 		const scale = size / Math.max(dimensions.x, dimensions.y, dimensions.z);
 
-		// Centred inside a holder, so rotating the holder turns (or tilts) the model in place
+		// Lowered in a holder by half its height, so rotating the holder turns (or tilts) it about its middle
 		model.scale.setScalar(scale);
-		model.position.copy(centre).multiplyScalar(-scale);
+		model.position.y = (-dimensions.y * scale) / 2;
 
 		const holder = new Group();
 		holder.add(model);
@@ -356,7 +347,7 @@ export default abstract class DiveScene extends Group implements IDisposable {
 	 * @returns their materials (own copies), to light the runes later
 	 */
 	protected runeStones(placements: readonly IPropPlacement[], size: number): MeshStandardMaterial[] {
-		const kinds = this.context.assets.pieces('elder_stones').length;
+		const kinds = this.context.assets.parts('elder_stones').length;
 		const materials: MeshStandardMaterial[] = [];
 
 		for (let piece = 0; piece < kinds; piece++) {

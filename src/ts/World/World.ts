@@ -13,7 +13,6 @@ import Seabed from './Terrain/Seabed.ts';
 import SceneLighting from './Lighting/SceneLighting.ts';
 import Atmosphere from './Lighting/Atmosphere.ts';
 import LifePatches from './Life/LifePatches.ts';
-import FishSchool from './Life/FishSchool.ts';
 import ReefScene from './Scenes/ReefScene.ts';
 import KelpScene from './Scenes/KelpScene.ts';
 import WreckScene from './Scenes/WreckScene.ts';
@@ -89,7 +88,7 @@ export default class World implements IResizable, IDisposable {
 			patches: this._patches,
 			assets,
 			terrain: this.seabed,
-			fish: FishSchool.template(fishPart, true)
+			fish: fishPart
 		};
 
 		this.reef = new ReefScene(context);

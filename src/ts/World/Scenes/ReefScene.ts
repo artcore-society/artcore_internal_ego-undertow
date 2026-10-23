@@ -157,8 +157,7 @@ export default class ReefScene extends DiveScene {
 					this.centre.clone().setY(this.centre.y + 4 + i * 2),
 					18 + i * 12,
 					0.07 - i * 0.02,
-					i * 2.5,
-					0
+					i * 2.5
 				)
 			);
 			this._turtles.push(turtle);
