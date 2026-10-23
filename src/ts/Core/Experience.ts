@@ -211,7 +211,7 @@ export default class Experience implements IDisposable {
 		world.reef.reset();
 		world.temple.reset();
 		world.atlantis.reset();
-		world.passage.whale.setGuide(null);
+		world.passage.whale.reset();
 		world.trail?.reset();
 		this._environment.setIlluminated(false, true);
 		this._isWhaleLeading = false;
@@ -449,7 +449,7 @@ export default class Experience implements IDisposable {
 		this._post?.splash(isAbove);
 	}
 
-	/** The whale swims its route a little ahead of the camera, then leaves once the temple is in sight. */
+	/** The whale swims its route a little ahead of the camera, then swims on and away once the temple is in sight. */
 	private guideWhale(progress: number, camera: RailCamera): void {
 		const whale = this._world?.passage.whale;
 
@@ -458,7 +458,7 @@ export default class Experience implements IDisposable {
 		}
 
 		if (progress > Experience.WHALE_RELEASE) {
-			whale.setGuide(null);
+			whale.depart();
 		} else {
 			whale.leadFrom(camera.position, Experience.WHALE_LEAD);
 		}

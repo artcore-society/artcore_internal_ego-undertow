@@ -9,21 +9,36 @@ import type { IModelPart } from '../../Assets/AssetLibrary.ts';
 /**
  * A humpback (scanned model, see CREDITS.md). Its body flexes in the vertex shader as it swims. It
  * circles the Whale Road until the journey asks it to lead, then swims down its route a little ahead
- * of the camera.
+ * of the camera. Sent on its way, it carries on past the route's end, climbing away into the dark.
  */
 export default class Whale extends Group implements IDisposable {
 	/** The model's length (it is authored centred, head towards -Z): the undulation spans it. */
 	private static readonly LENGTH = 15;
 	private static readonly SAMPLES = 120;
+	/** Leaving: m/s it settles into, and how fast it gets there. */
+	private static readonly DEPARTURE_SPEED = 7;
+	private static readonly DEPARTURE_EASING = 0.35;
+	/** Leaving: metres climbed per metre swum, reached gradually. */
+	private static readonly DEPARTURE_CLIMB = 0.35;
+	/** Leaving: gone into the murk after this many metres past the route's end. */
+	private static readonly DEPARTURE_REACH = 160;
 
 	private readonly _circleCentre: Vector3;
 	private readonly _circleRadius: number;
 	private readonly _path: CatmullRomCurve3;
 	private readonly _samples: Vector3[];
 	private readonly _body: Mesh;
+	private readonly _length: number;
+	private readonly _end: Vector3;
+	private readonly _endDirection: Vector3;
 	private readonly _target = new Vector3();
 	private readonly _ahead = new Vector3();
-	private _guide: number | null = null;
+	/** Metres along its road (the route, then on past its end), or null while circling. */
+	private _distance: number | null = null;
+	private _isDeparting = false;
+	/** m/s along its road: followed while leading, so leaving carries on at the same pace. */
+	private _speed = 0;
+	private _lastDistance = 0;
 	private _angle = 0;
 	private _heading = 0;
 	private _pitch = 0;
@@ -44,6 +59,10 @@ export default class Whale extends Group implements IDisposable {
 		this._circleRadius = circleRadius;
 		this._path = new CatmullRomCurve3([...path]);
 		this._samples = this._path.getSpacedPoints(Whale.SAMPLES);
+		this._length = this._path.getLength();
+		this._end = this._path.getPointAt(1);
+		// Level heading of the route's end: it climbs away by itself
+		this._endDirection = this._path.getTangentAt(1).setY(0).normalize();
 
 		const material = (part.material as MeshStandardMaterial).clone();
 		this._body = new Mesh(part.geometry, patchMaterial(material, patches.undulate(Whale.LENGTH), water.caustics));
@@ -54,6 +73,10 @@ export default class Whale extends Group implements IDisposable {
 
 	/** Leads a follower: swims `lead` metres ahead of them along its route (never backwards). */
 	public leadFrom(follower: Vector3, lead: number): void {
+		if (this._isDeparting) {
+			return;
+		}
+
 		let best = 0;
 		let bestDistance = Infinity;
 
@@ -66,19 +89,41 @@ export default class Whale extends Group implements IDisposable {
 			}
 		});
 
-		const ahead = best / Whale.SAMPLES + lead / this._path.getLength();
-		this.setGuide(Math.max(this._guide ?? 0, ahead));
+		const ahead = Math.min(this._length, (best / Whale.SAMPLES) * this._length + lead);
+		this._distance = Math.max(this._distance ?? 0, ahead);
 	}
 
-	/** 0..1 along its route while leading; null to let it circle. */
-	public setGuide(progress: number | null): void {
-		this._guide = progress === null ? null : Math.min(1, Math.max(0, progress));
+	/** Its job is done: it swims on down its road and away, and doesn't come back to lead again. */
+	public depart(): void {
+		if (this._distance === null || this._isDeparting) {
+			return;
+		}
+
+		this._isDeparting = true;
+	}
+
+	/** Back to circling the Whale Road, e.g. when the journey restarts. */
+	public reset(): void {
+		this._distance = null;
+		this._isDeparting = false;
+		this._speed = 0;
+		this.visible = true;
 	}
 
 	public update(elapsed: number, delta: number): void {
-		if (this._guide !== null) {
-			this._path.getPointAt(this._guide, this._target);
-			this._path.getPointAt(Math.min(1, this._guide + 0.02), this._ahead);
+		if (this._distance !== null) {
+			if (this._isDeparting) {
+				this._speed = damp(this._speed, Whale.DEPARTURE_SPEED, Whale.DEPARTURE_EASING, delta);
+				this._distance += this._speed * delta;
+				this.visible = this._distance < this._length + Whale.DEPARTURE_REACH;
+			} else if (delta > 0) {
+				this._speed = damp(this._speed, (this._distance - this._lastDistance) / delta, 2, delta);
+			}
+
+			this._lastDistance = this._distance;
+
+			this.roadPoint(this._distance, this._target);
+			this.roadPoint(this._distance + 3, this._ahead);
 		} else {
 			this._angle += delta * 0.045;
 			this.circlePoint(this._angle, this._target);
@@ -111,6 +156,23 @@ export default class Whale extends Group implements IDisposable {
 		this._body.geometry.dispose();
 		(this._body.material as MeshStandardMaterial).dispose();
 		super.dispose();
+	}
+
+	/** A point `distance` metres along its road: the route, then straight on from its end, climbing ever more steeply. */
+	private roadPoint(distance: number, target: Vector3): void {
+		if (distance <= this._length) {
+			this._path.getPointAt(distance / this._length, target);
+
+			return;
+		}
+
+		const beyond = distance - this._length;
+		// The climb eases in over the first 40 m, so the road bends up without a kink
+		const climb = Whale.DEPARTURE_CLIMB * (beyond - 40 * (1 - Math.exp(-beyond / 40)));
+		target
+			.copy(this._end)
+			.addScaledVector(this._endDirection, beyond)
+			.setY(this._end.y + climb);
 	}
 
 	private circlePoint(angle: number, target: Vector3): void {
