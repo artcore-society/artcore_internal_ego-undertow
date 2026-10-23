@@ -1,4 +1,14 @@
-import { Group, Scene, type Camera, type Texture, type Vector3 } from 'three';
+import {
+	Group,
+	Scene,
+	Texture,
+	type Camera,
+	type Mesh,
+	type Object3D,
+	type ShaderMaterial,
+	type Vector3,
+	type WebGLRenderer
+} from 'three';
 import { MODEL_NAMES, type ModelName } from '../Config/assets.ts';
 import { SURFACE_Y } from '../Config/world.ts';
 import { patchMaterial, type IMaterialPatch } from '../Helpers/MaterialPatch.ts';
@@ -153,6 +163,38 @@ export default class World implements IResizable, IDisposable {
 				scene.update(frame);
 			}
 		}
+	}
+
+	/**
+	 * Before the first frame: compiles every shader and uploads every texture, including those of things
+	 * hidden right now (far scenes, the sky above the surface, the beacon), so nothing stalls a frame the
+	 * first time it comes into view. three only compiles what's visible, so all of it is shown while
+	 * compiling, then hidden again.
+	 */
+	public async warmUp(renderer: WebGLRenderer, camera: Camera): Promise<void> {
+		const hidden: Object3D[] = [];
+		const textures = new Set<Texture>();
+
+		this.scene.traverse((object) => {
+			if (!object.visible) {
+				hidden.push(object);
+				object.visible = true;
+			}
+
+			const materials = (object as Partial<Mesh>).material;
+
+			for (const material of Array.isArray(materials) ? materials : materials ? [materials] : []) {
+				const uniforms = (material as Partial<ShaderMaterial>).uniforms ?? {};
+				const values = [...Object.values(material), ...Object.values(uniforms).map((uniform) => uniform?.value)];
+				values
+					.filter((value): value is Texture => value instanceof Texture)
+					.forEach((texture) => textures.add(texture));
+			}
+		});
+
+		await renderer.compileAsync(this.scene, camera);
+		textures.forEach((texture) => renderer.initTexture(texture));
+		hidden.forEach((object) => (object.visible = false));
 	}
 
 	/** Camera-relative work once the camera has moved: culling, the surface and backdrop, the beacon. */

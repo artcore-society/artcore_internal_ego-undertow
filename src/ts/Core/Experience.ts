@@ -224,11 +224,11 @@ export default class Experience implements IDisposable {
 		this._viewport.subscribe(world);
 		this._environment.subscribe(...world.environmentTargets, this._post);
 
-		// Settle the first frame, then compile every shader before showing anything
+		// Settle the first frame, then compile every shader and upload every texture before showing anything
 		camera.follow(journey.sample, { delta: 0, elapsed: 0 });
 		world.syncToCamera(camera, { delta: 0, elapsed: 0 });
 		this._environment.update(SURFACE_Y - camera.position.y, 0, 10);
-		await this._renderer.compileAsync(world.scene, camera);
+		await world.warmUp(this._renderer, camera);
 
 		this._ticker.add(this.update);
 		this._ticker.start();

@@ -42,12 +42,24 @@ const CHAPTER_MARKS = [
 	{ numeral: 'VI', from: 0.82 }
 ] as const;
 
-/** The chapter card shows when a chapter begins; keyed so it replays its animation. */
+/**
+ * The chapter card shows once, when a chapter begins (keyed, so each chapter plays its animation). A
+ * stop dismisses it for good: hidden and shown again, it would replay and the title would appear twice.
+ */
 const card = ref<Readonly<IChapterView> | null>(null);
 
 watch(
 	() => props.chapter?.numeral,
 	() => (card.value = props.chapter)
+);
+
+watch(
+	() => props.stop,
+	(stop) => {
+		if (stop) {
+			card.value = null;
+		}
+	}
 );
 
 const showScrollHint = computed(() => !props.stop && !props.caption && props.telemetry.progress < 0.035);
@@ -62,7 +74,7 @@ const showScrollHint = computed(() => !props.stop && !props.caption && props.tel
 		/>
 
 		<div class="journey-overlay__centre">
-			<ChapterTitle v-if="card && !stop" :key="card.numeral" :chapter="card" />
+			<ChapterTitle v-if="card" :key="card.numeral" :chapter="card" />
 		</div>
 
 		<Transition name="fade">
